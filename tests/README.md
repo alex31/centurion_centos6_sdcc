@@ -5,7 +5,7 @@ Run the Make targets from the distribution root or with `make -C tests`.
 | Target | Coverage |
 | --- | --- |
 | `make check` | Quick check of SDCC, the JavaScript emulator and CENTOS executable generation |
-| `make tests` | Quick check plus 22 regression cases built at `-O0` and `-O1`. All 44 binaries run on the C instruction emulator and the JavaScript microcoded emulator |
+| `make tests` | Quick check plus 22 regression cases built at `-O0` and `-O1`. All 44 binaries run on the C instruction emulator and the JavaScript microcoded emulator. A compile-only case checks the removal of an unreachable indirect store |
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
 | `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
 | `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Install and run a compiled program in a new CENTOS disk copy and confirm return to the shell |

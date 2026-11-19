@@ -32,7 +32,7 @@ automatically when called without an image argument. At `D=`, click
 
 | CENTOS command | Program |
 | --- | --- |
-| `STARTBASIC` | Start Stefan BASIC. Use `.LOAD "LIFEINT"` and `.RUN` for the integer Life example |
+| `STARTBASIC` | Start Stefan BASIC. Use `.LOAD "LIFEINT"` or `.LOAD "LIFELINE"`, then `.RUN`, for the two integer Life examples |
 | `.RUN XSIEVE` | SDCC-compiled prime sieve |
 | `.RUN XCONNECT4` | Connect Four |
 | `.RUN XCHESS` | Chess |
@@ -47,3 +47,16 @@ the raw CPU6 binaries separately on the C and JavaScript cores.
 
 The disk builder checks BASIC and both games before publishing the image.
 It also boots the final disk, runs XSIEVE and checks the test job output.
+
+`LIFEINT` prints each cell with a BASIC statement. `LIFELINE` builds each
+complete row in `L$` and prints it once. The image build compares all 27
+rows from both programs against an independent Life implementation.
+
+To time both complete LIFE programs on the same disk over three runs, use this command.
+
+```sh
+node tests/basic-life.js build/out/image/centos-apps.img 3
+```
+
+The measurement covers execution and output from the first Life banner
+through the last of the 27 rows. It excludes loading and compilation.

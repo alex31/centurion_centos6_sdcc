@@ -18,6 +18,8 @@ check: sdk
 	"$(ROOT)/run/cpu6-os6-sdcc" --lto --gc-sections "$(ROOT)/examples/hello_os6.c" -o "$(TEST_OUT)/smoke/hello.exf"
 
 tests: check test-c-emulator
+	mkdir -p "$(TEST_OUT)/compiler"
+	"$(ROOT)/run/sdcc" --std=c99 --opt-code-speed -S "$(TESTS)/sdcc-stale-use.c" -o "$(TEST_OUT)/compiler/sdcc-stale-use.s" > "$(TEST_OUT)/compiler/sdcc-stale-use.log" 2>&1 || { cat "$(TEST_OUT)/compiler/sdcc-stale-use.log"; exit 1; }
 	$(PYTHON) "$(TESTS)/sdcc-cpu6-regression.py"
 
 alltests: tests tests-web

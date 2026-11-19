@@ -131,15 +131,19 @@ def main():
     run(sys.executable, BASIC / 'build.py', '--commands', '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
     games = work / 'programs.img'
-    built = work / 'basic.img'
+    life = ROOT / 'image/programs/life1d'
+    text_files = []
+    for name, source in [('LIFEINT', 'life1d-integer.bas'), ('LIFELINE', 'life1d-line.bas')]:
+        text = work / (name + '.txt')
+        text.write_bytes(encode((life / source).read_text()))
+        text_files.extend(['--job', f'{name}={text}'])
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
-        '--job', f'RUNTESTS={job}', '-o', games)
-    run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', games,
-        '--check-games', '-o', built)
+        '--job', f'RUNTESTS={job}', *text_files, '-o', games)
     final_image = work / 'centos-apps.img'
-    run(sys.executable, BASIC / 'import.py', ROOT / 'image/programs/life1d/life1d-integer.bas',
-        '--image', built, '--name', 'LIFEINT', '-o', final_image)
+    run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', games,
+        '--check-games', '-o', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
+    run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
     with tempfile.TemporaryDirectory(prefix='.image-', dir=output.parent) as directory:
         pending = Path(directory) / output.name
         if output == DEFAULT_OUTPUT:
