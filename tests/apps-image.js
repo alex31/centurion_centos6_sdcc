@@ -3,6 +3,14 @@
 const assert = require('node:assert/strict');
 const {OS6Session} = require('../scripts/os6-session.js');
 
+function expectedPrimes(limit) {
+    const primes = [];
+    for (let n = 2; n <= limit; n++) {
+        if (primes.every(p => p * p > n || n % p !== 0)) primes.push(n);
+    }
+    return primes;
+}
+
 async function checkImage() {
     const session = new OS6Session(process.argv[2]);
     try {
@@ -10,8 +18,15 @@ async function checkImage() {
         const position = session.output.length;
         await session.send('.RUN XSIEVE\r');
         await session.waitFor('C_SIEVE;', position, 120000);
-        assert.match(session.output.slice(position), /Count:\s*1229\b/);
-        console.log('PASS: XSIEVE reported 1,229 primes under CENTOS.');
+        const output = session.output.slice(position);
+        const count = /^Count:\s*(\d+)/m.exec(output);
+        const start = output.indexOf('2,3,5,7,');
+        assert.ok(count && start >= 0, output);
+        const primes = output.slice(start, count.index).replace(/\s+/g, '').split(',').map(Number);
+        const expectedPrimesThrough10000 = expectedPrimes(10000);
+        assert.equal(Number(count[1]), expectedPrimesThrough10000.length);
+        assert.deepEqual(primes, expectedPrimesThrough10000);
+        console.log('PASS: XSIEVE produced all 1,229 expected primes under CENTOS.');
         const expected = Number(process.argv[3]);
         const from = session.output.length;
         await session.send('RUNTESTS\r');

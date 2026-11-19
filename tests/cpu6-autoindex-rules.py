@@ -61,6 +61,20 @@ check(['addb al,bl','orib bl,bl','rsr'],'orib bl,bl',False)
 check(['mul a,b','orib bl,bl','rsr'],'orib bl,bl')
 check(['!ldbb (x)','orib bl,bl','inr x','rsr'],'(x+)',False)
 
+# Index-register arithmetic can bypass a dead A or B without changing flags.
+for register in 'xyz':
+    for operand in 'axyz':
+        code = [f'xfr {register},b',f'add {operand},b',f'xfr b,{register}']
+        check(code+['bl Ldone','Ldone:','ldb 0','rsr'],f'add {operand},{register}')
+        check(code+['rsr'],f'add {operand},{register}',False)
+    code = [f'xfr {register},a','ldb _limit','sab']
+    check(code+['bf Ldone','Ldone:','rsr'],f'sub {register},b')
+    check(code+['sta (_saved)','rsr'],f'sub {register},b',False)
+check(['xfr y,b','add b,b','xfr b,y','ldb 0','rsr'],'add b,y',False)
+for source in ['(a)', '(x+)', '(-x)']:
+    check(['xfr x,a','ldb '+source,'sab','rsr'],'sub x,b',False)
+check(['xfr x,a','!ldb (_limit)','sab','rsr'],'sub x,b',False)
+
 (work/'results.json').write_text(json.dumps({'result':'PASS','cases':len(tests),'tests':tests},indent=2)+'\n')
 print('PASS',len(tests),'actual peephole engine cases')
 (root/'build/out/tests/latest-autoindex-rules.txt').write_text(str(work)+'\n')
