@@ -27,8 +27,9 @@ It runs raw test programs without boot or diagnostic ROM files.
 The extended C language suite runs at `-O0`, `-O1` and `-Os` on both cores.
 It executes the reduced BASIC reproducer, checks indirect stores through
 aliases and copies of odd-sized structures, and runs selected upstream
-SDCC structure and union tests. Separate compile-only cases require the
-CPU6 diagnostic for unsupported bit-field reads and writes.
+SDCC structure, union and bit-field tests. The CPU6 bit-field cases also
+verify sign extension, `_Bool` conversion, initialization, indexed
+members and preservation of neighboring bits in volatile objects.
 
 Test artifacts and logs live under `build/out/tests/`. The extended runner
 keeps one log per suite, runs remaining suites after a failure and returns a

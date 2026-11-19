@@ -18,6 +18,7 @@ void __fail(const char *message, const char *condition, const char *file, int li
 void testTortureExecute(void);
 void testWrites(void);
 void testMemberTypes(void);
+void test_cpu6_bitfields(void);
 
 static unsigned operand_type;
 static unsigned emitted, first_opcode, last_opcode;
@@ -155,6 +156,7 @@ int main(void)
     testTortureExecute();
     testWrites();
     testMemberTypes();
+    test_cpu6_bitfields();
     if (failures) {
         puts("FAIL C language regression");
         return 1;
