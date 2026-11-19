@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+compiler="$root/build/out/toolchain/sdcc-cpu6/bin/sdcc"
+if [ ! -x "$compiler" ]; then
+    printf '%s\n' 'Build the compiler first with make toolchain.' >&2
+    exit 1
+fi
+exec "$compiler" -mcpu6 "$@"

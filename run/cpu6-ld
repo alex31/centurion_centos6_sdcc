@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""CPU6 linker driver with per-function/data garbage collection."""
+from pathlib import Path
+import subprocess
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
+from cpu6_gc import main
+try:
+    main()
+except (OSError,ValueError,subprocess.CalledProcessError) as error:
+    print('cpu6-ld:',error,file=sys.stderr)
+    sys.exit(1)

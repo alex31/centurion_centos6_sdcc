@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Compile CPU6 C with SDCC and link against the validated Centurion runtime."""
+import argparse
+import os
+from pathlib import Path
+import runpy
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parent.parent
+TOOLS = ROOT / 'build/out/toolchain'
+sys.path.insert(0, str(ROOT / 'scripts'))
+from cpu6_object import attach
+from cpu6_provenance import compiler_info,input_hashes,write_manifest
+
+
+def main():
+    os6 = Path(sys.argv[0]).name == 'cpu6-os6-sdcc'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-o', required=True, type=Path)
+    parser.add_argument('-c', action='store_true', help='compile one C/assembly input to a self-contained CPU6 object')
+    parser.add_argument('-O', default='1', choices=['0', '1', 's'],
+                        help='0: stack temporaries; 1: speed with X/Y/Z allocation; s: size with X/Y/Z allocation')
+    parser.add_argument('-I', action='append', default=[])
+    parser.add_argument('-D', action='append', default=[])
+    parser.add_argument('--map', type=Path)
+    parser.add_argument('--save-temps', type=Path)
+    parser.add_argument('--stack-size', type=int, default=1024,
+                        help='CENTOS C stack reservation in bytes (256..8192, default 1024)')
+    parser.add_argument('--no-peep', action='store_true')
+    parser.add_argument('--lto', action='store_true',
+                        help='inline eligible CPU6 functions across C translation units at link time')
+    gc_mode = parser.add_mutually_exclusive_group()
+    gc_mode.add_argument('--gc-sections', action='store_true', help='remove unreachable functions and data at link time')
+    gc_mode.add_argument('--no-gc-sections', dest='gc_sections', action='store_false')
+    parser.set_defaults(gc_sections=False)
+    parser.add_argument('--gc-keep', action='append', default=[], metavar='SYMBOL',
+                        help='retain an additional exported root, e.g. _vectors (repeatable)')
+    parser.add_argument('--native-int48', action='store_true',
+                        help='enable _BitInt(48) and scalar int48_t/uint48_t in <int48.h>')
+    parser.add_argument('--float32', action='store_true',
+                        help='enable software IEEE-754 float32; double and long double remain unsupported')
+    parser.add_argument('--sdcc-option', action='append', default=[],
+                        help='additional SDCC option, e.g. --sdcc-option=--nolospre (repeatable)')
+    parser.add_argument('--origin', type=lambda text: int(text, 16),
+                        default=os.environ.get('CPU6_BARE_ORIGIN', '2000'),
+                        help='bare-metal load address in hexadecimal (default: 2000)')
+    parser.add_argument('sources', nargs='+', type=Path)
+    args = parser.parse_args(['-O1' if arg == '-O' else arg for arg in sys.argv[1:]])
+    if not 256 <= args.stack_size <= 8192:
+        parser.error('--stack-size must be between 256 and 8192')
+    if not os6 and args.stack_size != 1024:
+        parser.error('--stack-size applies to CENTOS programs')
+    sources = [p.resolve(strict=True) for p in args.sources]
+    if any(p.suffix not in ('.c', '.s', '.o', '.a') for p in sources):
+        parser.error('inputs must be C, assembly, CPU6 objects or archives')
+    if args.c and (len(sources) != 1 or sources[0].suffix not in ('.c', '.s')):
+        parser.error('-c requires exactly one C or assembly input')
+    if args.c and (args.lto or args.gc_keep):
+        parser.error('--lto and --gc-keep are link options; -c already retains the object IR')
+    output = args.o.resolve()
+    if output in sources:
+        parser.error('output must not overwrite an input')
+    if not os6 and not 0x200 <= args.origin < 0x8000:
+        parser.error('bare-metal origin must be between 0200 and 7fff')
+    if args.map and args.map.resolve() == output:
+        parser.error('map and output must be different files')
+    compiler = TOOLS / 'sdcc-cpu6/bin/sdcc'
+    includes = ([ROOT / 'os6/include'] if os6 else []) + [ROOT / 'baremetal/include']
+    includes += [Path(p).resolve() for p in args.I]
+    flags = ['-mcpu6', '-S', '--std=c99', '--opt-code-size' if args.O=='s' else '--opt-code-speed',
+             '-D__cpu6__=1', '-D__ee200__=1']
+    if os6:
+        flags += ['-D__CPU6_OS6__=1']
+    if args.O == '0':
+        flags += ['--cpu6-stack-only']
+    if args.no_peep:
+        flags += ['--no-peep']
+    if args.native_int48:
+        flags += ['--cpu6-bitint48', '-DCPU6_NATIVE_INT48=1']
+    float_enabled = args.float32 or '--cpu6-float32' in args.sdcc_option
+    if args.float32:
+        flags += ['--cpu6-float32']
+    flags += args.sdcc_option
+    flags += ['-I' + str(p) for p in includes] + ['-D' + s for s in args.D]
+    compiler_record=compiler_info(compiler)
+    source_hashes=input_hashes([*sources,*[p for inc in includes for p in inc.glob('*.h')],
+        Path(__file__).resolve(),ROOT/'scripts/cpu6_lto.py',ROOT/'scripts/cpu6_gc.py',
+        ROOT/'scripts/cpu6_object.py',TOOLS/'bin/asee200',TOOLS/'bin/ldee200',
+        *([ROOT/'os6/crt0.s'] if os6 else [])])
+    effective_profile=('Os' if [f for f in flags if f.startswith('--opt-code-')][-1]=='--opt-code-size' else 'O'+args.O)
+    with tempfile.TemporaryDirectory(prefix='cpu6-sdcc-') as directory:
+        work = Path(directory)
+        try:
+            if args.c:
+                objects, libraries = [], []
+            elif os6:
+                os6lib = TOOLS / 'lib/os6'
+                objects = [os6lib / name for name in ('crt0.o', 'putchar.o', 'puts.o')]
+                if args.stack_size != 1024:
+                    startup = work / 'crt0-stack.s'
+                    text = (ROOT / 'os6/crt0.s').read_text()
+                    old = '__osstack:\n\t.ds 1024'
+                    if text.count(old) != 1:
+                        raise RuntimeError('unexpected CENTOS stack reservation')
+                    startup.write_text(text.replace(old, '__osstack:\n\t.ds ' + str(args.stack_size)) +
+                                       '\n.export __osstack\n.export __osstack_end\n')
+                    objects[0] = startup.with_suffix('.o')
+                    subprocess.run([TOOLS / 'bin/asee200', '-o', objects[0], startup], check=True)
+                    attach(objects[0], startup.read_text())
+                formatter = os6lib / 'libprintf-sdcc.a'
+                overlay = os6lib / 'liboverlay-sdcc.a'
+                libraries = ([overlay] if overlay.is_file() else []) + ([formatter] if formatter.is_file() else []) + [os6lib / 'libos6.a']
+            else:
+                sources = [ROOT / 'baremetal/crt0.s', ROOT / 'baremetal/console.c', *sources]
+                objects, libraries = [], []
+            assemblies = []
+            link_inputs = []
+            for index, source in enumerate(sources):
+                if source.suffix in ('.o', '.a'):
+                    link_inputs.append(source)
+                    continue
+                assembly = work / f'unit{index}.s'
+                if source.suffix == '.c':
+                    subprocess.run([compiler, *flags, '-I' + str(source.parent),
+                                    '-o', assembly, source], cwd=work, check=True)
+                else:
+                    shutil.copyfile(source, assembly)
+                assemblies.append(assembly)
+                link_inputs.append(assembly.with_suffix('.o'))
+            if args.lto:
+                runpy.run_path(str(ROOT / 'scripts/cpu6_lto.py'))['optimize'](
+                    assemblies, work / 'lto-report.json')
+            for assembly in assemblies:
+                obj = assembly.with_suffix('.o')
+                subprocess.run([TOOLS / 'bin/asee200', '-o', obj, assembly],
+                               cwd=work, check=True)
+                attach(obj, assembly.read_text())
+            objects += link_inputs
+            if args.c:
+                shutil.copyfile(objects[0], output)
+                write_manifest(output,compiler_record,flags,source_hashes,profile=effective_profile,kind='object',lto=False,gc=False)
+                return
+            image, reloc, mapping = (work / s for s in ('image.bin', 'image.rel', 'image.map'))
+            command = [TOOLS / 'bin/ldee200', '-b', '-C', '512' if os6 else str(args.origin),
+                       '-o', image, '-m', mapping]
+            if args.gc_sections:
+                command[0] = ROOT / 'run/cpu6-ld'
+                command += ['--gc-sections', '--gc-report', work / 'gc-report.json']
+                for symbol in args.gc_keep:
+                    command += ['--gc-keep', symbol]
+            else:
+                for symbol in args.gc_keep:
+                    command += ['-u', symbol]
+            if os6:
+                command += ['-S', '135', '-R', reloc]
+            int48 = TOOLS / 'lib/cpu6/libint48-sdcc.a'
+            helpers = TOOLS / 'lib/cpu6/libcompiler-sdcc.a'
+            floats = TOOLS / 'lib/cpu6/libfloat32-sdcc.a'
+            if float_enabled and not floats.is_file():
+                raise RuntimeError('float32 runtime is missing; run scripts/build-float32.py')
+            command += objects + libraries + ([floats] if float_enabled else []) + ([int48] if int48.is_file() else []) + ([helpers] if helpers.is_file() else []) + [TOOLS / 'lib/ee200/libee200.a']
+            subprocess.run(command, cwd=work, check=True)
+            symbols = {}
+            for line in mapping.read_text().splitlines():
+                fields = line.split()
+                if len(fields) == 3:
+                    symbols[fields[2]] = int(fields[0], 16)
+            raw = image.read_bytes()
+            if os6:
+                expected = {'__osctx': 0x8c, '__oscrt': 0xe9, '__osfmt1': 0x159,
+                            '__osctxp': 0x15d, '__common': 0x87, 'start': 0x200}
+                if any(symbols.get(k) != v for k, v in expected.items()):
+                    raise RuntimeError('unexpected CENTOS startup layout')
+                if symbols.get('__end', 0x10000) > 0x7fff:
+                    raise RuntimeError('program exceeds the relocatable CENTOS user range')
+                rel = reloc.read_bytes()
+                if len(rel) % 3 or any(rel[i] != 1 for i in range(0, len(rel), 3)):
+                    raise RuntimeError('unsupported linker relocation')
+                fixups = [int.from_bytes(rel[i + 1:i + 3], 'big') for i in range(0, len(rel), 3)]
+                sections = [(0x8c, raw[0x8c:0x97]), (0xe7, raw[0xe7:0x107]),
+                            (0x152, raw[0x152:0x15f]), (0x200, raw[0x200:])]
+                if symbols['__end'] > len(raw):
+                    sections.append((symbols['__end'] - 1, b'\0'))
+                pack = runpy.run_path(str(ROOT / 'run/mkos6bin.py'))['make_cbin_sections']
+                output.write_bytes(pack(sections, 0x200, fixups))
+            else:
+                if len(raw) <= args.origin or any(raw[:args.origin]):
+                    raise RuntimeError('unexpected bare-metal linker layout')
+                if (symbols.get('__bss', -1) + symbols.get('__bss_size', -1) != symbols.get('__end')
+                        or symbols.get('__end', 0x10000) > 0x8000):
+                    raise RuntimeError('BSS is invalid or overlaps the diagnostic ROM')
+                output.write_bytes(raw[args.origin:])
+            if args.map:
+                shutil.copyfile(mapping, args.map)
+            runtime_inputs=[p for p in command if isinstance(p,Path) and p.suffix in ('.a','.o') and p.is_relative_to(TOOLS)]
+            write_manifest(output,compiler_record,flags,{**source_hashes,**input_hashes(runtime_inputs)},
+                           profile=effective_profile,kind='CENTOS executable' if os6 else 'bare executable',
+                           lto=args.lto,gc=args.gc_sections,stackBytes=args.stack_size if os6 else None,
+                           codeBytes=symbols.get('__code_size'),dataBytes=symbols.get('__data_size'),
+                           bssBytes=symbols.get('__bss_size'),residentEnd=symbols.get('__end'))
+        finally:
+            if args.save_temps:
+                args.save_temps.mkdir(parents=True, exist_ok=True)
+                for file in work.iterdir():
+                    if file.is_file():
+                        shutil.copyfile(file, args.save_temps / file.name)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'cpu6-sdcc: {error}', file=sys.stderr)
+        sys.exit(1)

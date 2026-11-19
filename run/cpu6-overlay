@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Build a relocatable C overlay and its resident descriptor for CENTOS CPL LOAD."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+from cpu6_object import symbols, unpack,attach
+from cpu6_provenance import compiler_info,input_hashes,write_manifest
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('sources', nargs='+', type=Path)
+    parser.add_argument('-o', required=True, type=Path)
+    parser.add_argument('--name', required=True, help='uppercase CENTOS filename, 1-10 letters/digits')
+    parser.add_argument('--entry', default='ov_entry', help='uint16_t entry(void *) with stack ABI')
+    parser.add_argument('--slot-size', required=True, type=lambda s: int(s, 0))
+    parser.add_argument('--float32', action='store_true')
+    parser.add_argument('--native-int48', action='store_true')
+    parser.add_argument('-I', action='append', default=[])
+    parser.add_argument('-D', action='append', default=[])
+    parser.add_argument('--save-temps', type=Path)
+    parser.add_argument('-O',choices=['0','1','s'],default='1')
+    parser.add_argument('--no-lto',action='store_true')
+    args = parser.parse_args()
+    if not re.fullmatch('[A-Z][A-Z0-9]{0,9}', args.name):
+        parser.error('--name must start with a letter and contain 1-10 uppercase letters/digits')
+    if not re.fullmatch('[A-Za-z_][A-Za-z_0-9]{0,14}', args.entry):
+        parser.error('--entry must be a C identifier of at most 15 characters')
+    if not 1 <= args.slot_size < 0x7e00:
+        parser.error('--slot-size must be between 1 and 32255')
+    sources = [p.resolve(strict=True) for p in args.sources]
+    if any(p.suffix != '.c' for p in sources):
+        parser.error('this initial overlay ABI accepts C sources only')
+    output = args.o.resolve()
+    if output.suffix != '.exf':
+        parser.error('-o must name an .exf file (the .h/.json/.map siblings are generated)')
+    if output in sources or any(output.with_suffix(s) in sources for s in ['.h', '.json', '.map']):
+        parser.error('outputs must not overwrite an input')
+    flags = ['-O'+args.O]
+    if args.float32: flags += ['--float32']
+    if args.native_int48: flags += ['--native-int48']
+    flags += ['-I' + str(Path(p).resolve()) for p in args.I] + ['-D' + s for s in args.D]
+    with tempfile.TemporaryDirectory(prefix='cpu6-overlay-') as temporary:
+        work = Path(temporary)
+        try:
+            objects = []
+            for i, source in enumerate(sources):
+                # Enforce the public ABI even if a definition tries to use a
+                # wide result or regcall. No unprototyped cross-module call.
+                unit = work / ('unit%d.c' % i)
+                unit.write_text('#include <os6overlay.h>\nuint16_t ' + args.entry +
+                                '(void *) CPU6_STACKCALL;\n#include ' + json.dumps(str(source)) + '\n')
+                obj = unit.with_suffix('.o')
+                subprocess.run([ROOT / 'run/cpu6-os6-sdcc', '-c', *flags,
+                                '-I' + str(source.parent), unit, '-o', obj], check=True)
+                objects.append(obj)
+            if not args.no_lto:
+                assemblies=[]
+                for obj in objects:
+                    raw,ir=unpack(obj.read_bytes())
+                    if ir is None:raise ValueError('fresh C object lacks LTO IR')
+                    asm=obj.with_suffix('.s');asm.write_text(ir['assembly']);assemblies.append(asm)
+                runpy.run_path(str(ROOT/'scripts/cpu6_lto.py'))['optimize'](assemblies,work/'lto-report.json')
+                for obj,asm in zip(objects,assemblies):
+                    subprocess.run([ROOT/'build/out/toolchain/bin/asee200','-o',obj,asm],check=True);attach(obj,asm.read_text())
+            entry = '_' + args.entry
+            if sum(entry in symbols(unpack(p.read_bytes())[0])[0] for p in objects) != 1:
+                raise ValueError('exactly one input must define ' + args.entry)
+            libraries = []
+            if args.float32: libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libfloat32-sdcc.a']
+            if args.native_int48: libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libint48-sdcc.a']
+            libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a', ROOT / 'build/out/toolchain/lib/ee200/libee200.a']
+            binary, mapping, reloc = [work / ('module' + s) for s in ['.bin', '.map', '.rel']]
+            subprocess.run([ROOT / 'run/cpu6-ld', '--gc-sections', '--entry=' + entry,
+                            '--gc-report', work / 'gc-report.json', '-b', '-C', '0',
+                            '-R', reloc, '-m', mapping, '-o', binary, *objects, *libraries], check=True)
+            sym = {f[2]: int(f[0], 16) for line in mapping.read_text().splitlines()
+                   if len(f := line.split()) == 3}
+            size = sym['__end']
+            if not 0 < size <= args.slot_size or not 0 <= sym[entry] < sym['__code_size']:
+                raise ValueError('module needs %d bytes; slot has %d, or entry is outside code' % (size, args.slot_size))
+            if any(sym.get('__' + segment + '_size', 0) for segment in ['common', 'commondata', 'zp', 'discard', 'buffers']):
+                raise ValueError('overlay must use only ordinary code/data/BSS sections')
+            raw = binary.read_bytes()
+            if len(raw) > size: raise ValueError('binary extends beyond the module extent')
+            # Every reload resets C static initialization, including ALL BSS.
+            raw += bytes(size - len(raw))
+            records = reloc.read_bytes()
+            if len(records) % 3 or any(records[i] != 1 for i in range(0, len(records), 3)):
+                raise ValueError('unsupported relocation in overlay')
+            fixups = [int.from_bytes(records[i + 1:i + 3], 'big') for i in range(0, len(records), 3)]
+            pack = runpy.run_path(str(ROOT / 'run/mkos6bin.py'))['make_cbin_sections']
+            cbin = pack([(0, raw)], sym[entry], fixups)
+            descriptor = {'format': 'cpu6-cpl-overlay', 'abi': 1, 'name': args.name,
+                          'entrySymbol': entry, 'entry': sym[entry], 'bytes': size,
+                          'code': sym['__code_size'], 'data': sym['__data_size'],
+                          'bss': sym['__bss_size'], 'slotSize': args.slot_size,
+                          'float32': args.float32, 'nativeInt48': args.native_int48,
+                          'sha256': hashlib.sha256(cbin).hexdigest(),
+                          'sources': {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}}
+            macro = args.name + '_OVERLAY'
+            header = '#ifndef ' + macro + '_H\n#define ' + macro + '_H\n#include <os6overlay.h>\n'
+            header += '#define ' + macro + '_BYTES ' + str(size) + 'U\n'
+            header += '#define ' + macro + ' {"' + args.name + '",1U,' + str(size) + 'U,' + str(sym[entry]) + 'U}\n#endif\n'
+            output.write_bytes(cbin)
+            provenance=write_manifest(output,compiler_info(ROOT/'build/out/toolchain/sdcc-cpu6/bin/sdcc'),flags,
+                                     input_hashes([*sources,*libraries]),profile='O'+args.O,lto=not args.no_lto,gc=True)
+            descriptor.update(compiler=provenance['compiler'],profile='O'+args.O,lto=not args.no_lto,gc=True)
+            output.with_suffix('.h').write_text(header)
+            output.with_suffix('.json').write_text(json.dumps(descriptor, indent=2) + '\n')
+            shutil.copyfile(mapping, output.with_suffix('.map'))
+            print('%s: %d bytes resident slot, %d bytes CBIN, ABI 1' % (args.name, size, len(cbin)))
+        finally:
+            if args.save_temps:
+                args.save_temps.mkdir(parents=True, exist_ok=True)
+                for p in work.iterdir():
+                    if p.is_file(): shutil.copyfile(p, args.save_temps / p.name)
+
+if __name__ == '__main__':
+    try: main()
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+        print('cpu6-overlay:', error, file=sys.stderr)
+        sys.exit(1)

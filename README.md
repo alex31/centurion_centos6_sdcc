@@ -1,0 +1,92 @@
+# Centurion SDCC
+
+Source distribution of the SDCC cross-compiler for Centurion CPU6, the EE200
+assembler and linker, and the microcoded JavaScript emulator. The build runs
+on Linux and targets the Linux environment under WSL2.
+
+## Build
+
+Install Git, GNU Make, a C/C++ toolchain with binutils, Flex, Bison or Berkeley
+Yacc, Boost headers, zlib headers, Python 3.9 or newer, and Node.js 20 or newer
+with npm. For Debian or Ubuntu, install the native build dependencies with:
+
+```sh
+sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3
+node --version
+npm --version
+```
+
+Run the build from a checkout in the Linux filesystem under WSL2.
+
+```sh
+make -j2 JOBS=4
+make check
+```
+
+The Makefile initializes required submodules at the pinned commits even after
+a plain clone. Use `make submodules` to fetch every component, including the
+optional BASIC source. `make toolchain` and `make emulator` build the two
+components independently. All generated files go under `build/out/`. Use
+`make clean` to remove them.
+
+`make check` compiles and runs a CPU6 arithmetic program in the JavaScript
+core and builds a CENTOS executable. It runs without a disk image or network
+listeners.
+
+## Compile for CPU6
+
+```sh
+run/sdcc --version
+run/cpu6-bare-sdcc -O1 build/smoke.c -o build/out/smoke.bin
+run/cpu6-os6-sdcc -Os --lto --gc-sections examples/hello_os6.c -o build/out/hello.exf
+```
+
+`run/sdcc` runs the underlying SDCC frontend with `-mcpu6`.
+Use the two drivers to assemble and link a bare-metal program or a relocatable
+CENTOS executable. Both support separate compilation with `-c`, linked
+objects and archives, `--float32`, and `--native-int48`. See
+[MMU placement](doc/mmu.md) and [C overlays](doc/overlays.md) for the
+corresponding CENTOS drivers.
+
+## Install and run under CENTOS
+
+Provide a 512-byte-stride CENTOS Hawk image. Use the installer to add the
+example to a new disk copy and launch the emulator on that copy.
+
+```sh
+run/cpu6-os6-install /path/to/CENTOS_13.IMG build/out/hello.exf XHELLO6 build/out/hello.img
+run/centurion-system build/out/hello.img
+```
+
+Connect a Telnet client to `127.0.0.1:2324`. At the ROM's `D=` prompt,
+enter `H1`. Press Enter to accept system disk 1, then enter the date
+(`MMDDYY`) and time (`HHMMSS`). At the CENTOS console, enter `.RUN XHELLO6`.
+Leaving out the disk argument starts the ROM and control panel.
+
+The emulator listens on loopback by default. The control panel uses TCP
+port 2323, CRT0 uses 2324, and CRT1 uses 2325. Disk management is on 2326 and
+raw CRT1 is on 2327. At the server prompt, `save <new-file.img>` exports the
+disk in memory and `q` stops the server.
+
+## Build BASIC
+
+```sh
+make basic
+make basic-image SEED=/path/to/CENTOS_13.IMG
+run/centurion-system build/out/basic/centos-basic.img
+```
+
+Enter `STARTBASIC` at the CENTOS prompt. See
+[Stefan BASIC for Centurion](swext/stefan-basic/CENTURION.md).
+
+## Sources
+
+| Submodule | Centurion changes |
+| --- | --- |
+| SDCC | [CPU6 backend and frontend](swext/sdcc/CENTURION.md) |
+| Fuzix-Bintools | [EE200 assembler and CBIN linker](swext/fuzix-bintools/CENTURION.md) |
+| EE200 runtime | [Assembly helpers](swext/libee200/CENTURION.md) |
+| JavaScript emulator | [Headless CENTOS integration](swext/centurion-js/CENTURION.md) |
+| Stefan BASIC | [CENTOS port and typed bytecode VM](swext/stefan-basic/CENTURION.md) |
+
+See [source provenance and publication](doc/sources.md) and [licenses](LICENSE.md).
