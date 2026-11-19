@@ -14,7 +14,7 @@ own license terms and copyright notices.
 | Stefan BASIC | [Upstream LICENSE](swext/stefan-basic/LICENSE), source notices and the [GPLv3 text](swext/stefan-basic/COPYING.GPL-3) |
 | mcu-max | [MIT license](swext/mcu-max/LICENSE) |
 | E-Kermit | [Revised three-clause BSD license](swext/ekermit/COPYING) |
-| EE200 assembly runtime | [Upstream README](swext/libee200/README.md) and [redistribution status](swext/libee200/CENTURION.md) |
+| Historical EE200 assembly runtime (optional checkout) | [Upstream notice](https://github.com/EtchedPixels/Fuzix-Compiler-Kit#licence) and [source provenance](doc/sources.md) |
 
 The build installs TypeScript and ws from npm, with their own notices.
 CENTOS disk images are user-supplied inputs.

@@ -1,8 +1,9 @@
 # Source revisions and publication
 
 The distribution pins the `centurion` branch of each submodule at an exact
-commit. An ordinary `git submodule update --init --recursive` checks out these
-pins. The `branch` entries in `.gitmodules` also identify the branches used by
+commit. An ordinary `git submodule update --init --recursive` checks out the
+build and test components. The optional historical EE200 runtime has
+`update = none`. The `branch` entries in `.gitmodules` identify the branches used by
 an explicit `git submodule update --remote`.
 
 | Submodule | Upstream base | Original branch in the local repository |
@@ -17,8 +18,9 @@ an explicit `git submodule update --remote`.
 | E-Kermit | 1.8 protocol release | `upstream`, protocol sources and license |
 
 The source imports preserve the original contents of the selected
-files and have local Git commit IDs. The EE200 import keeps only the runtime
-assembly and attribution. The emulator import keeps the TypeScript source
+files and have local Git commit IDs. The optional EE200 import preserves the
+historical runtime assembly and attribution. The SDK links the
+[native compiler helpers](../lib/compiler/README.md). The emulator import keeps the TypeScript source
 used by the headless build. The C emulator is built for testing. The BASIC import keeps only the POSIX interpreter
 sources used by the port. Each submodule has a `CENTURION.md` on the
 `centurion` branch with its changes.
@@ -27,11 +29,12 @@ sources used by the port. Each submodule has a `CENTURION.md` on the
 
 The GitHub URLs in `.gitmodules` are the intended destinations under
 `alex31`. The pinned commits and branches currently exist in the local
-submodules. Confirm the [EE200 runtime redistribution terms](../swext/libee200/CENTURION.md)
-before publishing. Review any conditions on keeping or redistributing
-the original ROM tables included in the CenRE source.
+submodules. The standard checkout skips the historical EE200 runtime. The
+optional import retains its upstream README and licensing notes. Review
+any conditions on keeping or redistributing the original ROM tables
+included in the CenRE source.
 
-Publish each submodule before the distribution repository. Push both the
+Publish each build and test submodule before the distribution repository. Push both the
 original branch named above and `centurion`. The SDCC clone is shallow
 at the original commit. Run `git -C swext/sdcc fetch --unshallow upstream master`
 before pushing the SDCC branches to an empty remote. Set each component's

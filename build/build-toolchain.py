@@ -67,26 +67,6 @@ def build_sdcc(jobs, run, cc):
 
 
 def build_runtime(run):
-    work = OUT / "runtime"
-    work.mkdir(exist_ok=True)
-    sources = sorted((ROOT / "swext/libee200/supportee200").glob("*.s"))
-    # The distribution supplies the startup code. The three other helpers
-    # were outside the original archive member list.
-    excluded = {"crt0.s", "__ccgteql.s", "__ccgtl.s", "__cclteql.s"}
-    objects = []
-    for source in sources:
-        if source.name in excluded:
-            continue
-        obj = work / source.with_suffix(".o").name
-        run([TOOLS / "bin/asee200", "-o", obj, source], work)
-        objects.append(obj)
-    archive = work / "libee200.new.a"
-    archive.unlink(missing_ok=True)
-    run(["ar", "qc", archive, *objects], work)
-    dest = TOOLS / "lib/ee200"
-    dest.mkdir(parents=True, exist_ok=True)
-    archive.replace(dest / "libee200.a")
-
     for script in ("build-int48.py", "build-os6-lib.py", "build-float32.py",
                    "build-compiler-runtime.py"):
         run([sys.executable, ROOT / "scripts" / script], ROOT)

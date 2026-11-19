@@ -78,7 +78,7 @@ def main():
             libraries = []
             if args.float32: libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libfloat32-sdcc.a']
             if args.native_int48: libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libint48-sdcc.a']
-            libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a', ROOT / 'build/out/toolchain/lib/ee200/libee200.a']
+            libraries.append(ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a')
             binary, mapping, reloc = [work / ('module' + s) for s in ['.bin', '.map', '.rel']]
             subprocess.run([ROOT / 'run/cpu6-ld', '--gc-sections', '--entry=' + entry,
                             '--gc-report', work / 'gc-report.json', '-b', '-C', '0',

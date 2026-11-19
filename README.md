@@ -24,8 +24,8 @@ make check
 ```
 
 The Makefile initializes required submodules at the pinned commits even after
-a plain clone. Use `make submodules` to fetch every component, including the
-optional BASIC source and the C instruction emulator used by the test suite. `make toolchain` and `make emulator` build the two
+a plain clone. Use `make submodules` to fetch the build and test components,
+including BASIC and the C instruction emulator. `make toolchain` and `make emulator` build the two
 components independently. All generated files go under `build/out/`. Use
 `make clean` to remove them.
 
@@ -107,7 +107,7 @@ Enter `STARTBASIC` at the CENTOS prompt. See
 | --- | --- |
 | SDCC | [CPU6 backend and frontend](swext/sdcc/CENTURION.md) |
 | Fuzix-Bintools | [EE200 assembler and CBIN linker](swext/fuzix-bintools/CENTURION.md) |
-| EE200 runtime | [Assembly helpers](swext/libee200/CENTURION.md) |
+| Historical EE200 runtime | Optional provenance checkout. The SDK builds its [native helpers](lib/compiler/README.md) |
 | C instruction emulator | [Regression test core](swext/centurion-c/CENTURION.md) |
 | JavaScript emulator | [Headless CENTOS integration](swext/centurion-js/CENTURION.md) |
 | Stefan BASIC | [CENTOS port and typed bytecode VM](swext/stefan-basic/CENTURION.md) |

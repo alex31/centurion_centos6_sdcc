@@ -13,6 +13,7 @@
 	url = https://github.com/alex31/centurion-ee200-runtime.git
 	branch = centurion
 	shallow = true
+	update = none
 [submodule "swext/centurion-js"]
 	path = swext/centurion-js
 	url = https://github.com/alex31/centurion-js.git

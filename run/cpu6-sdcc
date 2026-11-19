@@ -161,7 +161,7 @@ def main():
             floats = TOOLS / 'lib/cpu6/libfloat32-sdcc.a'
             if float_enabled and not floats.is_file():
                 raise RuntimeError('float32 runtime is missing; run scripts/build-float32.py')
-            command += objects + libraries + ([floats] if float_enabled else []) + ([int48] if int48.is_file() else []) + ([helpers] if helpers.is_file() else []) + [TOOLS / 'lib/ee200/libee200.a']
+            command += objects + libraries + ([floats] if float_enabled else []) + ([int48] if int48.is_file() else []) + [helpers]
             subprocess.run(command, cwd=work, check=True)
             symbols = {}
             for line in mapping.read_text().splitlines():

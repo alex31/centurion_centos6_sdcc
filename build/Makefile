@@ -13,7 +13,7 @@ submodules:
 	git -C "$(ROOT)" submodule update --init --recursive
 
 toolchain:
-	git -C "$(ROOT)" submodule update --init -- swext/sdcc swext/fuzix-bintools swext/libee200
+	git -C "$(ROOT)" submodule update --init -- swext/sdcc swext/fuzix-bintools
 	$(PYTHON) "$(ROOT)/build/build-toolchain.py" --jobs "$(JOBS)" --cc "$(CC)"
 
 emulator:

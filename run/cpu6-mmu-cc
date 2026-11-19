@@ -156,7 +156,7 @@ def main():
                       ROOT/'scripts/cpu6_gc.py', ROOT/'scripts/cpu6_lto.py', ROOT/'scripts/cpu6_object.py', ROOT/'run/mkos6bin.py',
                       ROOT/'build/out/toolchain/bin/asee200', ROOT/'build/out/toolchain/bin/ldee200',
                       *sorted((ROOT/'build/out/toolchain/lib/os6').glob('*')),
-                      *sorted((ROOT/'build/out/toolchain/lib/cpu6').glob('*.a')), ROOT/'build/out/toolchain/lib/ee200/libee200.a']:
+                      *sorted((ROOT/'build/out/toolchain/lib/cpu6').glob('*.a'))]:
                 if p.is_file(): digest.update(p.read_bytes())
             digest.update(str((args.stack_size,args.O,args.no_lto)).encode())
             identity = digest.digest()[:4]
@@ -179,7 +179,7 @@ def main():
                 p = ROOT / 'build/out/toolchain/lib/os6' / filename
                 if p.exists(): libraries.append(p)
             if args.float32: libraries.append(ROOT / 'build/out/toolchain/lib/cpu6/libfloat32-sdcc.a')
-            libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a', ROOT / 'build/out/toolchain/lib/ee200/libee200.a']
+            libraries.append(ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a')
             paths = [crt, *user_objects, runtime, gate, prefix, placeholder,
                      ROOT / 'build/out/toolchain/lib/os6/putchar.o', ROOT / 'build/out/toolchain/lib/os6/puts.o', *libraries]
             units = gc.read_units(paths)
