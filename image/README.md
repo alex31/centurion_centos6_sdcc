@@ -44,6 +44,9 @@ automatically when called without an image argument. At `D=`, click
 | `.RUN XKERMIT` | E-Kermit receiver for CRT1 |
 | `RUNTESTS` | Run the 44 CENTOS executables from the main CPU6 compiler regression suite |
 
+In BASIC, `.LOAD "BDEMO"` followed by `.RUN` demonstrates real arithmetic
+and mixed numeric and string data using `DATA`, `READ` and `RESTORE`.
+
 The application image contains the CENTOS builds of the regression tests
 named `T01O0` through `T22O1`. Each run records the mapping from file names
 to C cases in `tests.md`. The device-independent tools under `tests/` run
