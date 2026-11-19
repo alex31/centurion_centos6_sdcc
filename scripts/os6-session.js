@@ -32,20 +32,33 @@ class OS6Session {
     }
 
     async waitFor(marker, from = 0, timeoutMs = 45000) {
+        const matches = () => {
+            const output = this.output.slice(from);
+            return typeof marker === 'string' ? output.includes(marker) : output.search(marker) !== -1;
+        };
         const deadline = Date.now() + timeoutMs;
-        while (!this.output.slice(from).includes(marker) && Date.now() < deadline) await sleep(25);
-        if (!this.output.slice(from).includes(marker))
-            throw new Error(`Timeout waiting for ${JSON.stringify(marker)}; output:\n${this.output.slice(from)}`);
+        while (!matches() && Date.now() < deadline) await sleep(25);
+        if (!matches()) {
+            const description = typeof marker === 'string' ? JSON.stringify(marker) : String(marker);
+            throw new Error(`Timeout waiting for ${description}; output:\n${this.output.slice(from)}`);
+        }
+    }
+
+    async waitInputReady(ch) {
+        // With no next byte, wait only for the last byte to be read.
+        const ready = () => !this.port.read_busy &&
+            (ch === undefined || ch === '\x03' || this.port.rts !== false);
+        const deadline = Date.now() + 5000;
+        while (!ready() && Date.now() < deadline) await sleep(10);
+        if (!ready()) throw new Error('Terminal input remained busy');
     }
 
     async send(text) {
         for (const ch of text) {
-            const deadline = Date.now() + 5000;
-            while ((this.port.read_busy || (this.port.rts === false && ch !== '\x03')) && Date.now() < deadline) await sleep(10);
-            if (this.port.read_busy || (this.port.rts === false && ch !== '\x03')) throw new Error('Terminal input remained busy');
+            await this.waitInputReady(ch);
             this.port.receive(ch.charCodeAt(0));
-            await sleep(50);
         }
+        if (text.length) await this.waitInputReady();
     }
 
     async boot() {

@@ -19,6 +19,10 @@ and generated output images live under `build/out/image/`. Intermediate
 files, executable maps and build reports are grouped by run under
 `build/out/image/work/`.
 
+The installer follows the emulated terminal's receive status and waits for
+CENTOS to complete each allocation. It checks every file's type and allocated
+space in the new disk before writing the executable or text data.
+
 After the build, run the emulator from the distribution root and open
 the [web console](http://127.0.0.1:42646/).
 

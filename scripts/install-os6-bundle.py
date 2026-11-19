@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-from centos_disk import root_entry, write_root_file
+from centos_disk import allocated_sectors, root_entry, write_root_file
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('image',type=Path)
@@ -46,18 +46,41 @@ for name, _, _ in alloc:
 work=Path(tempfile.mkdtemp(prefix='os6-bundle-',dir=os.environ.get('CENTURION_IMAGE_WORK', ROOT/'build/out')));print('Results:',work,flush=True)
 original=hashlib.sha256(seed_data).hexdigest()
 allocate=work/'allocate.js'
-allocate.write_text('''const {OS6Session}=require(process.env.BUNDLE_SESSION);
-(async()=>{const s=new OS6Session(process.env.BUNDLE_SEED);try{await s.boot();
-for(const [name,type,size] of JSON.parse(process.env.BUNDLE_FILES)){
-const reply=await s.command(`.NEW ${name} ON 1 '${type}' ${size}S`,'DONE');
-if(/ABORT|ERROR|CANCELLED|JX\\s*\\d/.test(reply))throw Error(reply);console.log("Allocated",name,type,size);}
-s.saveNew(process.env.BUNDLE_OUT);}finally{s.stop();}})()
-.then(()=>process.exit(0),e=>{console.error(e);process.exit(1)});''')
+allocate.write_text(r'''const {OS6Session}=require(process.env.BUNDLE_SESSION);
+
+async function allocate() {
+    const session = new OS6Session(process.env.BUNDLE_SEED);
+    try {
+        await session.boot();
+        for (const [name, type, size] of JSON.parse(process.env.BUNDLE_FILES)) {
+            const command = ".NEW " + name + " ON 1 '" + type + "' " + size + "S";
+            await session.command(command, /(?:^|\n)DONE\x07?\r?\n/);
+            console.log('Allocated', name, type, size);
+        }
+        session.saveNew(process.env.BUNDLE_OUT);
+    } finally {
+        session.stop();
+    }
+}
+
+allocate().then(() => process.exit(0), error => {
+    console.error(error);
+    process.exit(1);
+});
+''')
 disk=work/'allocated.img'
 with (work/'allocate.log').open('w') as log:
  subprocess.run(['node',allocate],stdout=log,stderr=subprocess.STDOUT,check=True,timeout=240,
   env=dict(os.environ,BUNDLE_SESSION=str(ROOT/'scripts/os6-session.js'),BUNDLE_SEED=str(seed),BUNDLE_FILES=json.dumps(alloc),BUNDLE_OUT=str(disk)))
 result = bytearray(disk.read_bytes())
+file_types = {'A': 2, 'B': 1, 'E': 4}
+for name, file_type, size in alloc:
+    entry = root_entry(result, name)
+    if entry is None or entry.kind != file_types[file_type]:
+        raise ValueError(f'CENTOS did not allocate {name} as type {file_type}')
+    sectors = allocated_sectors(result, entry)
+    if len(sectors) < size or len(set(sectors)) != len(sectors):
+        raise ValueError(f'{name} has an invalid allocation for {size} sectors')
 with (work/'install.log').open('w') as log:
  for name, path, kind in files:
   count = write_root_file(result, name, kind, path.read_bytes())
