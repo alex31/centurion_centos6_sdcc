@@ -2,7 +2,7 @@
 	.code
 	.export _os6_write_encoded
 
-; Internal printf sink: a nonempty chunk of at most 64 encoded characters.
+; Internal console sink: a nonempty field of encoded characters.
 ; WRITEN preserves the current line. Newlines use the existing putchar path.
 _os6_write_encoded:
 	stx (-s)
