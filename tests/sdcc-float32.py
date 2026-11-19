@@ -45,6 +45,8 @@ if 'arithmetic' in parts:
     pairs=[(a,edge[(i*7+3)%len(edge)]) for i,a in enumerate(edge)]
     pairs += [(0,0),(0x80000000,0x80000000),(0,0x80000000),(0x7f800000,0xff800000),
               (0x3f800000,0x33800000),(0x3f800001,0x33800000),(0x800000,0x3f000000)]
+    pairs += [(0x447a1000,0xc0000000),(0xc47a1000,0x3f000000),(0xbf800000,1),
+              (0x80000001,0x80000001),(0x800001,0x40000000),(0x7f7fffff,0x3f000000)]
     pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(34)]
     source=head+'''float add(float a,float b){return a+b;} float sub(float a,float b){return a-b;}
 float mul(float a,float b){return a*b;} float divv(float a,float b){return a/b;}

@@ -8,6 +8,15 @@ uint32_t f32_div(uint32_t a,uint32_t b)
     if (aa>F32_INF || bb>F32_INF || (aa==F32_INF && bb==F32_INF) || (!aa&&!bb)) return F32_NAN;
     if (aa==F32_INF || !bb) return ((uint32_t)sign<<31)|F32_INF;
     if (!aa || bb==F32_INF) return (uint32_t)sign<<31;
+    if (aa==bb) return ((uint32_t)sign<<31)|0x3f800000UL;
+    /* Dividing normal values by an exact power of two only changes the
+       exponent while the result stays normal. The general path rounds
+       subnormal results and handles overflow. */
+    if (aa>=F32_HIDDEN && bb>=F32_HIDDEN && !(bb&F32_FRAC)) {
+        exponent=(int)(aa>>23)-(int)(bb>>23)+127;
+        if (exponent>0 && exponent<255)
+            return ((uint32_t)sign<<31)|((uint32_t)exponent<<23)|(aa&F32_FRAC);
+    }
     exponent=f32_unpack(a,&ma)-f32_unpack(b,&mb)+127;
     if (ma<mb) {ma<<=1;exponent--;}
     /* Restoring division produces the retained significand plus guard,

@@ -13,5 +13,9 @@ unsigned char f32_lt(uint32_t a,uint32_t b)
 }
 unsigned char f32_le(uint32_t a,uint32_t b)
 {
-    return f32_eq(a,b)||f32_lt(a,b);
+    uint32_t aa=F32_ABS(a),bb=F32_ABS(b);
+    if (aa>F32_INF || bb>F32_INF) return 0;
+    if (!(aa|bb)) return 1;
+    if ((a^b)&F32_SIGN) return (unsigned char)(a>>31);
+    return a&F32_SIGN ? a>=b : a<=b;
 }
