@@ -1,10 +1,11 @@
 TEST_JOBS ?= 2
+BASIC_BENCHMARKS ?= BM1,BM2
 WEB_SEED ?= $(wildcard $(APP_IMAGE))
 TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games bench-basic
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -35,3 +36,6 @@ tests-web: emulator
 
 tests-games: emulator
 	node "$(TESTS)/games-vt100.js" "$(APP_IMAGE)"
+
+bench-basic: emulator
+	node "$(TESTS)/basic-benchmark.js" "$(APP_IMAGE)" "" "$(BASIC_BENCHMARKS)"
