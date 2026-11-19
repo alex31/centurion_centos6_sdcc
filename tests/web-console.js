@@ -107,6 +107,19 @@ async function checkConsolePage(html, script, image) {
     assert.equal(picker.clicks, 1);
     await page.chooseFile('from-console.img', image);
     await waitFor(booted, 'CENTOS boot from the file chooser', 45);
+    const realtime = page.id('speed-realtime');
+    const maximum = page.id('speed-maximum');
+    assert.equal(maximum.checked, true);
+    assert.equal(realtime.disabled, false);
+    realtime.checked = true;
+    await realtime.dispatch('change');
+    await waitFor(() => realtime.checked && !maximum.checked &&
+        page.id('connection').textContent === 'Running · Real time', 'the real-time radio option');
+    assert.ok(booted(), 'changing speed reset the guest');
+    maximum.checked = true;
+    await maximum.dispatch('change');
+    await waitFor(() => maximum.checked && !realtime.checked &&
+        page.id('connection').textContent === 'Running · Maximum speed', 'the maximum-speed radio option');
     for (const key of ['.', 'S', 'T', 'A', 'Enter']) page.press(0, key);
     await waitFor(() => /STATUS DISPLAY/.test(terminal.textContent) &&
         /SYSTEM DATE:\s*11\/19\/26/.test(terminal.textContent), 'the console keyboard and boot date');
@@ -195,9 +208,18 @@ async function main() {
     assert.equal((await control('step')).status, 409);
     assert.equal((await control('pause')).status, 200);
     await waitFor(() => !state.running, 'CPU pause');
+    const pausedPC = state.pc;
+    assert.equal((await control('speed&mode=invalid')).status, 400);
+    assert.equal((await control('speed&mode=realtime')).status, 200);
+    await waitFor(() => state.speed === 'realtime', 'the real-time speed while paused');
+    assert.equal(state.running, false);
+    assert.equal(state.pc, pausedPC);
     assert.equal((await control('step')).status, 200);
     assert.equal((await control('run')).status, 200);
     await waitFor(() => state.running, 'CPU resume');
+    assert.equal(state.speed, 'realtime');
+    assert.equal((await control('speed&mode=maximum')).status, 200);
+    await waitFor(() => state.speed === 'maximum' && state.running, 'maximum speed while running');
 
     const image = process.argv[2] ? fs.readFileSync(process.argv[2]) : Buffer.alloc(6651904, 0x42);
     const consolePage = process.argv[2] ?
@@ -246,7 +268,7 @@ async function main() {
         consolePage?.close();
         ws.close();
     }
-    console.log('PASS: web page, CPU controls, both CRTs, disk round trip and server shutdown.');
+    console.log('PASS: web page, CPU controls and speed selection, both CRTs, disk round trip and server shutdown.');
 }
 
 main().then(() => process.exit(0), error => {

@@ -67,8 +67,11 @@ run/centurion-system build/out/hello.img
 ```
 
 Open [the web console](http://127.0.0.1:42646/) in your browser. It shows
-CRT0 and CRT1, CPU registers, run state and mounted disks. Click a CRT to
-type or paste. At the ROM's `D=` prompt, **Boot CENTOS** sends `H1`,
+CRT0 and CRT1, CPU registers, run state and mounted disks. Use **Real time
+(5 MHz)** to pace the simulated CPU or **Maximum speed** to run as fast as
+the host allows. The selection takes effect while the machine is running
+and can also be changed while paused. Click a CRT to type or paste. At the
+ROM's `D=` prompt, **Boot CENTOS** sends `H1`,
 accepts system disk 1 and enters the browser's current local date and time
 at the CENTOS prompts. On the standard ROM the prompt appears on CRT0.
 
