@@ -13,6 +13,7 @@ OUTPUT = ROOT / "build/out/tests"
 
 SUITES = (
     "compiler-audit.py",
+    "sdcc-cpu6-language.py",
     "sdcc-cpu6-codegen.py",
     "sdcc-cpu6-constants.py",
     "sdcc-byte-arithmetic.py",
