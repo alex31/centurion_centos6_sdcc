@@ -1,9 +1,10 @@
 TEST_JOBS ?= 2
+WEB_SEED ?=
 TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -19,10 +20,13 @@ check: all
 tests: check test-c-emulator
 	$(PYTHON) "$(TESTS)/sdcc-cpu6-regression.py"
 
-alltests: tests
+alltests: tests tests-web
 	$(PYTHON) "$(TESTS)/run-suites.py" --jobs "$(TEST_JOBS)"
 
 tests-centos: check
 	@work=$$(mktemp -d "$(TEST_OUT)/centos.XXXXXX") && \
 		"$(ROOT)/run/cpu6-os6-install" "$(SEED)" "$(TEST_OUT)/smoke/hello.exf" XHELLO6 "$$work/centos.img" && \
 		node "$(TESTS)/centos.js" "$$work/centos.img"
+
+tests-web: emulator
+	node "$(TESTS)/web-console.js" $(if $(WEB_SEED),"$(WEB_SEED)")

@@ -59,12 +59,25 @@ run/cpu6-os6-install /path/to/CENTOS_13.IMG build/out/hello.exf XHELLO6 build/ou
 run/centurion-system build/out/hello.img
 ```
 
+Open [the web console](http://127.0.0.1:42646/) in your browser. It shows
+CRT0 and CRT1, CPU registers, run state and mounted disks. Click a CRT to
+type or paste. At the ROM's `D=` prompt, **Boot CENTOS** sends `H1`,
+accepts system disk 1 and enters the browser's current local date and time
+at the CENTOS prompts. On the standard ROM the prompt appears on CRT0.
+
+**Load image** selects a raw Hawk image on your computer, mounts it in
+DSK2 unit 1 and resets the CPU. Use **Run** if the CPU is paused. The
+console accepts 400-byte and 512-byte sector strides. **Save image** downloads a copy of the current contents of that
+drive. **Stop server** closes the emulator process. Save the image before
+stopping the server to retain in-memory changes.
+
 Connect a Telnet client to `127.0.0.1:2324`. At the ROM's `D=` prompt,
 enter `H1`. Press Enter to accept system disk 1, then enter the date
 (`MMDDYY`) and time (`HHMMSS`). At the CENTOS console, enter `.RUN XHELLO6`.
 Leaving out the disk argument starts the ROM and control panel.
 
-The emulator listens on loopback by default. The control panel uses TCP
+The emulator listens on loopback by default. The web console uses HTTP and
+WebSocket on port 42646. The Telnet control panel uses TCP
 port 2323, CRT0 uses 2324, and CRT1 uses 2325. Disk management is on 2326 and
 raw CRT1 is on 2327. At the server prompt, `save <new-file.img>` exports the
 disk in memory and `q` stops the server.

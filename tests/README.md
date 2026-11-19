@@ -7,7 +7,12 @@ Run the Make targets from the distribution root or with `make -C tests`.
 | `make check` | Quick check of SDCC, the JavaScript emulator and CENTOS executable generation |
 | `make tests` | Quick check plus 22 regression cases built at `-O0` and `-O1`. All 44 binaries run on the C instruction emulator and the JavaScript microcoded emulator |
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
+| `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
 | `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Install and run a compiled program in a new CENTOS disk copy and confirm return to the shell |
+
+The web test uses the real HTTP and WebSocket parsers over in-memory
+connections. Add `WEB_SEED=/path/to/CENTOS_13.IMG` to test the boot shortcut
+and keyboard input against CENTOS.
 
 The compiler suites run directly in emulated memory. `test-c-emulator`
 builds the C instruction emulator from its pinned submodule for the tests.
