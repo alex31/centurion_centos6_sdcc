@@ -144,6 +144,7 @@ def main():
         '--check-games', '-o', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
+    run('node', ROOT / 'tests/games-vt100.js', final_image)
     with tempfile.TemporaryDirectory(prefix='.image-', dir=output.parent) as directory:
         pending = Path(directory) / output.name
         if output == DEFAULT_OUTPUT:

@@ -45,8 +45,11 @@ named `T01O0` through `T22O1`. Each run records the mapping from file names
 to C cases in `tests.md`. The device-independent tools under `tests/` run
 the raw CPU6 binaries separately on the C and JavaScript cores.
 
-The disk builder checks BASIC and both games before publishing the image.
-It also boots the final disk, runs XSIEVE and checks the test job output.
+The disk builder checks BASIC, runs XSIEVE and checks the test job output
+before publishing the image. It plays Connect Four and chess under CENTOS
+and checks the resulting boards through the emulator's VT100 screen model.
+Chess updates only the squares changed by a move, including captures,
+en passant and castling. Run `make tests-games` to repeat the game checks.
 
 `LIFEINT` prints each cell with a BASIC statement. `LIFELINE` builds each
 complete row in `L$` and prints it once. The image build compares all 27

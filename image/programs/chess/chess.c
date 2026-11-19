@@ -7,6 +7,7 @@ static unsigned callback_count, searching;
 static unsigned long began, now;
 static unsigned flipped, last_computer;
 static char last_move[5];
+static char displayed[8][8];
 void c4_clock_read(unsigned long *value);
 
 static void cooperate(void *unused)
@@ -35,9 +36,27 @@ static void message(unsigned row,const char *text)
 {position(row,1);printf("\033[0m\033[K%s",text);}
 static int ask(unsigned row,const char *text)
 {message(row,text);return os6_getline(input,sizeof(input));}
-static void board(void)
+static char square_token(unsigned rank, unsigned file)
 {
-    unsigned rank,file,piece,r,f;char token;
+    unsigned r = flipped ? 7 - rank : rank;
+    unsigned f = flipped ? 7 - file : file;
+    unsigned piece = chess_piece((uint8_t)(r * 16 + f));
+    char token = " PPNKBRQ"[piece & 7];
+    return piece & 8 ? token + 'a' - 'A' : token;
+}
+
+static void paint_square(unsigned rank, unsigned file, char token)
+{
+    if ((rank + file) & 1)
+        printf(" %c ", token);
+    else
+        printf("\033[7m %c \033[0m", token);
+    displayed[rank][file] = token;
+}
+
+static void draw_board(void)
+{
+    unsigned rank,file,r;
     static const char *legend[]={"P/p  Pawn","N/n  Knight","B/b  Bishop","R/r  Rook","Q/q  Queen","K/k  King"};
     printf("\033[0m\033[2J\033[HCHESS - Centurion CPU6");
     message(2,"White: uppercase   Black: lowercase");
@@ -48,12 +67,8 @@ static void board(void)
         position(4+2*rank,1);printf("   +---+---+---+---+---+---+---+---+");
         position(5+2*rank,1);printf(" %u |",8-r);
         for(file=0;file<8;file++){
-            f=flipped?7-file:file;
-            piece=chess_piece((uint8_t)(r*16+f));
-            token=" PPNKBRQ"[piece&7];
-            if(piece&8)token+='a'-'A';
-            if(!((r+f)&1))printf("\033[7m");
-            printf(" %c \033[0m|",token);
+            paint_square(rank,file,square_token(rank,file));
+            putchar('|');
         }
         printf(" %u",8-r);
     }
@@ -63,7 +78,22 @@ static void board(void)
     position(18,44);printf("HELP  Commands");
     position(19,44);printf("NEW   New game");
     position(20,44);printf("Q     Exit");
-    if(last_move[0]){position(24,1);printf("%s %s",last_computer?"Computer plays":"Last move:",last_move);}
+}
+
+static void update_board(void)
+{
+    unsigned rank, file;
+    for (rank = 0; rank < 8; rank++) {
+        for (file = 0; file < 8; file++) {
+            char token = square_token(rank, file);
+            if (token != displayed[rank][file]) {
+                position(5 + 2 * rank, 5 + 4 * file);
+                paint_square(rank, file, token);
+            }
+        }
+    }
+    position(24, 1);
+    printf("\033[K%s %s", last_computer ? "Computer plays" : "Last move:", last_move);
 }
 static void remember(uint8_t from,uint8_t to,unsigned computer)
 {
@@ -94,10 +124,11 @@ int main(void)
         if(command("Q"))break;
         if(!command("W")&&!command("B")&&!command("2"))continue;
         two=command("2");human=command("B");flipped=human&&!two;last_move[0]=0;game_start();
+        draw_board();
         while(1){
-            board();
+            if(last_move[0])update_board();
             if(game_status()!=CHESS_PLAYING){ending();break;}
-            position(22,1);printf("%s to move%s.",chess_side()?"Black":"White",game_checked()?" - CHECK":"");
+            position(22,1);printf("\033[K%s to move%s.",chess_side()?"Black":"White",game_checked()?" - CHECK":"");
             if(!two && chess_side()!=human){
                 message(23,"Computer thinking...");callback_count=0;c4_clock_read(&began);searching=1;
                 game_choice(&move);searching=0;

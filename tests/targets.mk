@@ -4,7 +4,7 @@ TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos tests-web
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -32,3 +32,6 @@ tests-centos: check
 
 tests-web: emulator
 	node "$(TESTS)/web-console.js" $(if $(WEB_SEED),"$(WEB_SEED)")
+
+tests-games: emulator
+	node "$(TESTS)/games-vt100.js" "$(APP_IMAGE)"
