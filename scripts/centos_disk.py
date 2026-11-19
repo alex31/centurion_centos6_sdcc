@@ -1,4 +1,4 @@
-"""Read the root directory and allocation records on a padded CENTOS Hawk disk."""
+"""Read and populate existing root files on a padded CENTOS Hawk disk."""
 from dataclasses import dataclass
 
 STRIDE = 512
@@ -66,3 +66,24 @@ def allocated_sectors(data, entry):
         sectors.extend(range(start, end))
         index += 1
     return sectors
+
+
+
+def write_root_file(image, name, kind, data):
+    if not data or len(data) % PAYLOAD:
+        raise ValueError('payload must contain whole 400-byte sectors')
+    entry = root_entry(image, name)
+    file_types = {'BIN': 1, 'TXT': 2, 'EXF': 4}
+    if entry is None or entry.kind != file_types[kind]:
+        raise ValueError(f'a root {kind} named {name} is required')
+    sectors = allocated_sectors(image, entry)
+    count = len(data) // PAYLOAD
+    if count > len(sectors):
+        raise ValueError(f'{name} needs {count} sectors, file only has {len(sectors)}')
+    if len(set(sectors)) != len(sectors):
+        raise ValueError(f'{name} has a duplicate sector in its allocation chain')
+    for index, sector in enumerate(sectors[:count]):
+        offset = sector * STRIDE
+        start = index * PAYLOAD
+        image[offset:offset + PAYLOAD] = data[start:start + PAYLOAD]
+    return count

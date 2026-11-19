@@ -20,6 +20,8 @@ if [ ! -f "$server" ]; then
 fi
 if [ "$#" -eq 1 ]; then
     export CENTURION_DISK_IMAGE="$1"
+elif [ -z "${CENTURION_DISK_IMAGE-}" ] && [ -r "$root/build/out/image/centos-apps.img" ]; then
+    export CENTURION_DISK_IMAGE="$root/build/out/image/centos-apps.img"
 fi
 if [ -n "${CENTURION_DISK_IMAGE-}" ] && [ ! -r "$CENTURION_DISK_IMAGE" ]; then
     printf 'Disk image is unreadable: %s\n' "$CENTURION_DISK_IMAGE" >&2

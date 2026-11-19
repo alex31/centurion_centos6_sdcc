@@ -7,7 +7,8 @@ allocation maps and timestamps are not invented by this tool.
 import argparse
 import pathlib
 import re
-from centos_disk import HAWK_BYTES, PAYLOAD, STRIDE, allocated_sectors, root_entry
+import sys
+from centos_disk import write_root_file
 
 
 def main():
@@ -23,25 +24,8 @@ def main():
         parser.error('the root filename must be 1..10 supported characters')
     if args.image.resolve() == args.output.resolve():
         parser.error('output must be a different image')
-    source = args.image.read_bytes()
-    if len(source) != HAWK_BYTES:
-        parser.error('expected a 6 651 904-byte Hawk image')
-    data = args.cbin.read_bytes()
-    if not data or len(data) % PAYLOAD:
-        parser.error('CBIN must contain whole 400-byte sectors')
-    entry = root_entry(source, name)
-    file_types = {"BIN": 1, "TXT": 2, "EXF": 4}
-    if entry is None or entry.kind != file_types[args.type]:
-        raise ValueError(f"a root {args.type} named {name} is required")
-    sectors = allocated_sectors(source, entry)
-    count = len(data) // PAYLOAD
-    if count > len(sectors):
-        raise ValueError(f"CBIN needs {count} sectors, file only has {len(sectors)}")
-    if len(set(sectors)) != len(sectors):
-        raise ValueError("duplicate sector in allocation chain")
-    result = bytearray(source)
-    for i, sector in enumerate(sectors[:count]):
-        result[sector * STRIDE:sector * STRIDE + PAYLOAD] = data[i * PAYLOAD:(i + 1) * PAYLOAD]
+    result = bytearray(args.image.read_bytes())
+    count = write_root_file(result, name, args.type, args.cbin.read_bytes())
     with args.output.open('xb') as out:
         out.write(result)
     print(f'{name}: {count} sectors written into new image {args.output}')
@@ -50,6 +34,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError) as error:
         print(f'inject-os6-exf: {error}', file=sys.stderr)
         sys.exit(1)

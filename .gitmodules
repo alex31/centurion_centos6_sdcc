@@ -28,3 +28,13 @@
 	url = https://github.com/alex31/centurion-c.git
 	branch = centurion
 	shallow = true
+[submodule "swext/mcu-max"]
+	path = swext/mcu-max
+	url = https://github.com/alex31/centurion-mcu-max.git
+	branch = centurion
+	shallow = true
+[submodule "swext/ekermit"]
+	path = swext/ekermit
+	url = https://github.com/alex31/centurion-ekermit.git
+	branch = centurion
+	shallow = true

@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-from centos_disk import root_entry
+from centos_disk import root_entry, write_root_file
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('image',type=Path)
@@ -43,7 +43,7 @@ for item in args.data_file:
 if len({item[0] for item in alloc})!=len(alloc):parser.error('duplicate filename')
 for name, _, _ in alloc:
  if root_entry(seed_data, name) is not None:parser.error('root file already exists: '+name)
-work=Path(tempfile.mkdtemp(prefix='os6-bundle-',dir=ROOT/'build/out'));print('Results:',work,flush=True)
+work=Path(tempfile.mkdtemp(prefix='os6-bundle-',dir=os.environ.get('CENTURION_IMAGE_WORK', ROOT/'build/out')));print('Results:',work,flush=True)
 original=hashlib.sha256(seed_data).hexdigest()
 allocate=work/'allocate.js'
 allocate.write_text('''const {OS6Session}=require(process.env.BUNDLE_SESSION);
@@ -57,12 +57,16 @@ disk=work/'allocated.img'
 with (work/'allocate.log').open('w') as log:
  subprocess.run(['node',allocate],stdout=log,stderr=subprocess.STDOUT,check=True,timeout=240,
   env=dict(os.environ,BUNDLE_SESSION=str(ROOT/'scripts/os6-session.js'),BUNDLE_SEED=str(seed),BUNDLE_FILES=json.dumps(alloc),BUNDLE_OUT=str(disk)))
-for i,(name,p,kind) in enumerate(files):
- target=output if i==len(files)-1 else work/('disk%d.img'%i)
- with (work/(name+'.log')).open('w') as log:
-  subprocess.run(['python3',ROOT/'scripts/inject-os6-exf.py',disk,name,p,'--type',kind,'-o',target],stdout=log,stderr=subprocess.STDOUT,check=True)
- disk=target
+result = bytearray(disk.read_bytes())
+with (work/'install.log').open('w') as log:
+ for name, path, kind in files:
+  count = write_root_file(result, name, kind, path.read_bytes())
+  print(f'{name}: {count} sectors written', file=log)
 assert hashlib.sha256(seed.read_bytes()).hexdigest()==original
+with tempfile.TemporaryDirectory(prefix='.image-', dir=output.parent) as directory:
+ pending = Path(directory) / output.name
+ pending.write_bytes(result)
+ os.link(pending, output)
 (work/'result.json').write_text(json.dumps({'image':str(output),'sourceSha256':original,'sourceUnchanged':True,
  'files':{name:{'path':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for name,p,kind in files},'allocations':alloc},indent=2)+'\n')
 print('Installed:',output,flush=True)

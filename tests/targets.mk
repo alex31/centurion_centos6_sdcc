@@ -11,7 +11,7 @@ test-c-emulator:
 	mkdir -p "$(OUT)/test-c-emulator"
 	$(MAKE) -C "$(OUT)/test-c-emulator" -f "$(C_EMULATOR)/Makefile" VPATH="$(C_EMULATOR)" centurion
 
-check: all
+check: sdk
 	mkdir -p "$(TEST_OUT)/smoke"
 	"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/smoke.c" -o "$(TEST_OUT)/smoke/smoke.bin"
 	node "$(TESTS)/compiler-audit-core.js" "$(TEST_OUT)/smoke" "$(TESTS)/smoke.json"

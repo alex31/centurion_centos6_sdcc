@@ -12,6 +12,8 @@ own license terms and copyright notices.
 | C instruction emulator | [GPLv3 license](swext/centurion-c/LICENCE) and file-specific notices |
 | JavaScript emulator | [CenRE License](swext/centurion-js/LICENSE.txt) and [NOTICE](swext/centurion-js/NOTICE.md) |
 | Stefan BASIC | [Upstream LICENSE](swext/stefan-basic/LICENSE), source notices and the [GPLv3 text](swext/stefan-basic/COPYING.GPL-3) |
+| mcu-max | [MIT license](swext/mcu-max/LICENSE) |
+| E-Kermit | [Revised three-clause BSD license](swext/ekermit/COPYING) |
 | EE200 assembly runtime | [Upstream README](swext/libee200/README.md) and [redistribution status](swext/libee200/CENTURION.md) |
 
 The build installs TypeScript and ws from npm, with their own notices.

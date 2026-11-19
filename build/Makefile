@@ -1,11 +1,13 @@
+.DEFAULT_GOAL := sdk
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 OUT := $(ROOT)/build/out
-SEED ?= $(OUT)/CENTOS_13.IMG
+SEED ?= $(OUT)/image/CENTOS_13.IMG
 JOBS ?= 4
 PYTHON ?= python3
 
-.PHONY: all submodules toolchain emulator basic basic-image clean
-all: toolchain emulator
+.PHONY: all sdk submodules toolchain emulator basic basic-image clean
+all: apps-image
+sdk: toolchain emulator
 
 submodules:
 	git -C "$(ROOT)" submodule update --init --recursive
@@ -29,3 +31,5 @@ clean:
 	rm -rf -- "$(OUT)"
 
 include $(ROOT)/tests/targets.mk
+
+include $(ROOT)/image/targets.mk

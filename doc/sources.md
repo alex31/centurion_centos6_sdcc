@@ -13,6 +13,8 @@ an explicit `git submodule update --remote`.
 | C instruction emulator | [4e1a61c](https://github.com/EtchedPixels/Centurion/tree/4e1a61c56a48f36f231e93837f4896d621290685) | `upstream`, source tree |
 | JavaScript emulator | [2bf3550](https://github.com/billsargent/centurion/tree/2bf355026e3f5d4ebdf51138088b9499ccb31b09) | `upstream`, selected TypeScript source files and notices |
 | Stefan BASIC | [86ec458](https://github.com/slviajero/tinybasic/tree/86ec458ca3dac9d156ce23bfa28a99f1f39ca656/Basic2/Posix) | `upstream`, selected POSIX interpreter sources and license |
+| mcu-max | [1.0.6](https://github.com/Gissio/mcu-max/tree/aa03caffce50729566b5db6965bf735c31f33eea) | `upstream`, engine sources and license |
+| E-Kermit | 1.8 protocol release | `upstream`, protocol sources and license |
 
 The source imports preserve the original contents of the selected
 files and have local Git commit IDs. The EE200 import keeps only the runtime

@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+"""Send one CENTOS executable with C-Kermit and the CPU6 CRT1 bridge."""
+import argparse
+from collections import deque
+import os
+from pathlib import Path
+import pty
+import select
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import termios
+import time
+import tty
+
+MAX_PACKET_LEN = 512
+
+
+def validate_exf(data):
+    """Check the CBIN records before starting a transfer."""
+    if not data or len(data) % 400:
+        raise ValueError('EXF length must be a nonzero multiple of 400 bytes')
+    ended = entry = False
+    for sector in range(0, len(data), 400):
+        offset = 0
+        while offset < 400:
+            kind = data[sector + offset]
+            if kind == 0x80:
+                break
+            if kind == 0x84:
+                ended = True
+                break
+            if kind not in (0, 1) or offset + 5 > 400:
+                raise ValueError('invalid CBIN record header')
+            length = data[sector + offset + 1]
+            if length > 120 or offset + 5 + length > 400 or (kind == 1 and length % 2):
+                raise ValueError('invalid CBIN record length')
+            record = data[sector + offset:sector + offset + length + 5]
+            if sum(record) & 255:
+                raise ValueError('invalid CBIN record checksum')
+            if kind == 0 and length == 0:
+                entry = True
+            offset += length + 5
+        if ended:
+            break
+    if not entry or not ended:
+        raise ValueError('CBIN entry or end record is missing')
+
+
+def open_serial(device, baud):
+    speed = getattr(termios, f'B{baud}', None)
+    if speed is None:
+        raise ValueError(f'unsupported serial baud rate: {baud}')
+    fd = os.open(device, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    try:
+        attrs = termios.tcgetattr(fd)
+        attrs[0] = termios.IGNBRK
+        attrs[1] = 0
+        attrs[2] = termios.CLOCAL | termios.CREAD | termios.CS7 | termios.PARENB
+        attrs[3] = 0
+        attrs[4] = attrs[5] = speed
+        attrs[6][termios.VMIN] = 0
+        attrs[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        termios.tcflush(fd, termios.TCIOFLUSH)
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def write_all(fd, data):
+    view = memoryview(data)
+    while view:
+        if not select.select([], [fd], [], 30)[1]:
+            raise TimeoutError('serial write timed out')
+        try:
+            written = os.write(fd, view)
+        except BlockingIOError:
+            continue
+        if not written:
+            raise ConnectionError('serial connection closed')
+        view = view[written:]
+
+
+def compact_chunk(packet, position):
+    """Encode one CRT line; its data field is at most 71 characters."""
+    escapes = {1: b'`A', 13: b'`M', 43: b'`P', 95: b'`U', 96: b'``'}
+    encoded = bytearray()
+    start = position
+    while position < len(packet):
+        value = packet[position]
+        if value in escapes:
+            transformed = escapes[value]
+        elif 32 <= value <= 126:
+            transformed = bytes([value])
+        else:
+            raise ValueError(f'non-printable Kermit byte: {value:02x}')
+        if len(encoded) + len(transformed) > 71:
+            break
+        encoded.extend(transformed)
+        position += 1
+    kind = 'L' if position == len(packet) else 'C'
+    return position, f'{kind}{position - start:02X}'.encode('ascii') + encoded + b'\r'
+
+
+def bridge(master, serial, process):
+    """Wrap outbound Kermit packets in printable CRT lines; unwrap replies."""
+    incoming = bytearray()
+    reply = bytearray()
+    packets = deque()
+    phase = 'idle'
+    current = b''
+    position = 0
+    deadline = time.monotonic() + 60
+    sent_data_packets = 0
+    tracing = os.environ.get('CPU6_KERMIT_TRACE') == '1'
+
+    def trace(message):
+        if tracing:
+            print(message, file=sys.stderr, flush=True)
+
+    def send_part():
+        nonlocal position, phase, deadline
+        position, line = compact_chunk(current, position)
+        write_all(serial, line)
+        phase = 'reply' if position == len(current) else 'chunk'
+        trace(f'TX line {chr(line[0])}: {position}/{len(current)} bytes, next {phase}')
+        deadline = time.monotonic() + 60
+
+    def start_next():
+        nonlocal current, position, sent_data_packets
+        if phase == 'idle' and packets:
+            current = packets.popleft()
+            position = 0
+            if len(current) > 3:
+                trace(f'TX packet: type {chr(current[3])}, sequence {current[2] - 32}, '
+                      f'{len(current)} bytes, long={current[1] == 32}')
+            if len(current) > 3 and current[3] == ord('D'):
+                sent_data_packets += 1
+                if sent_data_packets % 20 == 0:
+                    print(f'{sent_data_packets} Kermit data packets sent', flush=True)
+            send_part()
+
+    while True:
+        status = process.poll()
+        if status is not None:
+            if status:
+                raise RuntimeError(f'C-Kermit exited with status {status}')
+            return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f'no response from CENTOS (waiting for {phase})')
+        readable = select.select([master, serial], [], [], 0.25)[0]
+        for fd in readable:
+            try:
+                data = os.read(fd, 4096)
+            except BlockingIOError:
+                continue
+            if not data:
+                raise ConnectionError('C-Kermit or serial connection closed')
+            for value in data:
+                value &= 0x7f
+                if fd == master:
+                    if not incoming:
+                        if value == 1:
+                            incoming.append(value)
+                    else:
+                        incoming.append(value)
+                        if len(incoming) > MAX_PACKET_LEN + 10:
+                            raise ValueError('C-Kermit sent an oversized packet')
+                        if value == 13:
+                            packet = bytes(incoming)
+                            incoming.clear()
+                            if packet == current and phase == 'reply':
+                                trace('Retrying packet after a missing Kermit reply')
+                                reply.clear()
+                                position = 0
+                                send_part()
+                            elif packet == current and phase == 'chunk':
+                                trace('Packet retry deferred while awaiting a line acknowledgement')
+                            else:
+                                packets.append(packet)
+                                start_next()
+                elif phase == 'chunk':
+                    if value == ord('+'):
+                        trace('RX line acknowledgement')
+                        send_part()
+                elif phase == 'reply':
+                    if not reply:
+                        if value == 1:
+                            reply.append(value)
+                    else:
+                        reply.append(value)
+                        if len(reply) > 100:
+                            raise ValueError('CENTOS sent an oversized packet')
+                        if value == 13:
+                            if len(reply) > 3:
+                                trace(f'RX packet: type {chr(reply[3])}, '
+                                      f'sequence {reply[2] - 32}, {len(reply)} bytes')
+                            write_all(master, reply)
+                            reply.clear()
+                            phase = 'idle'
+                            deadline = time.monotonic() + 60
+                            start_next()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('exf', type=Path, help='CPU6 CBIN executable to send')
+    choice = parser.add_mutually_exclusive_group()
+    choice.add_argument('--tcp', default=None, metavar='HOST:PORT',
+                        help='emulator raw serial port (default: 127.0.0.1:2327)')
+    choice.add_argument('--serial', metavar='DEVICE', help='physical serial device (7E1)')
+    parser.add_argument('--baud', type=int, default=9600, help='physical serial baud rate')
+    args = parser.parse_args()
+    data = args.exf.read_bytes()
+    validate_exf(data)
+    kermit = os.environ.get('CKERMIT', 'kermit')
+    if not shutil.which(kermit):
+        raise FileNotFoundError('C-Kermit not found; install kermit or set CKERMIT')
+    connection = None
+    fd = master = slave = None
+    process = None
+    try:
+        if args.serial:
+            fd = open_serial(args.serial, args.baud)
+        else:
+            address = args.tcp or '127.0.0.1:2327'
+            host, separator, port = address.rpartition(':')
+            if not separator or not host or not port.isdecimal():
+                raise ValueError('--tcp must be HOST:PORT')
+            connection = socket.create_connection((host, int(port)), timeout=10)
+            connection.setblocking(False)
+            fd = connection.fileno()
+        print('Transport: compact', flush=True)
+        with tempfile.TemporaryDirectory(prefix='cpu6-kermit-') as directory:
+            work = Path(directory)
+            payload = work / 'PAYLOAD.EXF'
+            payload.write_bytes(data)
+            config = work / 'kermit.ini'
+            config.write_text('set prefixing all\n'
+                              f'set send packet-length {MAX_PACKET_LEN}\n'
+                              f'set receive packet-length {MAX_PACKET_LEN}\nset window 1\n'
+                              'set attributes off\nset streaming off\nset send timeout 30\n')
+            master, slave = pty.openpty()
+            tty.setraw(slave)
+            device = os.ttyname(slave)
+            process = subprocess.Popen([kermit, str(config), '-Y', '-l', device, '-b', '9600',
+                                        '-p', 'even', '-i', '-s', str(payload)],
+                                       stdin=subprocess.DEVNULL)
+            print(f'Sending {len(data)} bytes ({len(data) // 400} sectors)', flush=True)
+            bridge(master, fd, process)
+            print('C-Kermit transfer complete; check RECEIVED on the CENTOS console.', flush=True)
+    finally:
+        if process and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        if master is not None:
+            os.close(master)
+        if slave is not None:
+            os.close(slave)
+        if connection is not None:
+            connection.close()
+        elif fd is not None:
+            os.close(fd)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, TimeoutError) as error:
+        print(f'cpu6-kermit-send: {error}', file=sys.stderr)
+        sys.exit(1)

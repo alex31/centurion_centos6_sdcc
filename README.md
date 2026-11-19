@@ -74,13 +74,21 @@ stopping the server to retain in-memory changes.
 Connect a Telnet client to `127.0.0.1:2324`. At the ROM's `D=` prompt,
 enter `H1`. Press Enter to accept system disk 1, then enter the date
 (`MMDDYY`) and time (`HHMMSS`). At the CENTOS console, enter `.RUN XHELLO6`.
-Leaving out the disk argument starts the ROM and control panel.
+With a generated application image available, the launcher mounts it automatically.
+When no disk is mounted, **Boot CENTOS** opens the image picker at `D=`.
 
 The emulator listens on loopback by default. The web console uses HTTP and
 WebSocket on port 42646. The Telnet control panel uses TCP
 port 2323, CRT0 uses 2324, and CRT1 uses 2325. Disk management is on 2326 and
 raw CRT1 is on 2327. At the server prompt, `save <new-file.img>` exports the
 disk in memory and `q` stops the server.
+
+## Build the complete application image
+
+Run `./dobuild` or `make all` to build the compiler, the applications and
+the CENTOS disk image. The result is `build/out/image/centos-apps.img`.
+See the [image build guide](image/README.md) for its applications and
+`RUNTESTS`. Use `make sdk` for the compiler and emulator alone.
 
 ## Build BASIC
 
@@ -103,5 +111,7 @@ Enter `STARTBASIC` at the CENTOS prompt. See
 | C instruction emulator | [Regression test core](swext/centurion-c/CENTURION.md) |
 | JavaScript emulator | [Headless CENTOS integration](swext/centurion-js/CENTURION.md) |
 | Stefan BASIC | [CENTOS port and typed bytecode VM](swext/stefan-basic/CENTURION.md) |
+| mcu-max | [Chess engine](swext/mcu-max/CENTURION.md) |
+| E-Kermit | [CENTOS receiver](swext/ekermit/CENTURION.md) |
 
 See [source provenance and publication](doc/sources.md) and [licenses](LICENSE.md).

@@ -18,14 +18,18 @@ delete process.env.CENTURION_DISK_IMAGE;
 // two linked byte streams. This also works without permission to open sockets.
 let webServer;
 const listen = net.Server.prototype.listen;
+const exists = fs.existsSync;
 try {
     net.Server.prototype.listen = function(port) {
         if (port === 42646) webServer = this;
         return this;
     };
+    // Test the empty drive even if the user has staged a default boot disk.
+    fs.existsSync = file => !/[\\/]disks[\\/]CENTOS_13\.IMG$/.test(String(file)) && exists(file);
     require(path.join(built, 'server/src/server.js'));
 } finally {
     net.Server.prototype.listen = listen;
+    fs.existsSync = exists;
 }
 assert.ok(webServer instanceof http.Server, 'The server must expose an HTTP console');
 
@@ -125,6 +129,15 @@ async function main() {
     await waitFor(() => state.terminals[0]?.bootReady, 'the first ROM prompt');
     assert.match(screen(state.terminals[0]), /D=/);
 
+    assert.equal(state.canSave, false);
+    ws.send(JSON.stringify({type: 'boot', port: 0, date: '111926', time: '140000'}));
+    await waitFor(() => messageError, 'a missing image diagnostic');
+    assert.equal(messageError, 'Load a CENTOS disk image first');
+    messageError = undefined;
+    ws.send(JSON.stringify({type: 'paste', port: 0, text: 'H1'}));
+    await waitFor(() => /D=H1[\s\S]*ERROR/.test(screen(state.terminals[0])) && state.terminals[0].bootReady,
+        'the ROM error and return to D=');
+
     // CRT1 is ordinarily idle at boot. Exercise its independent MUX path.
     const crt1 = global.window.io_mux.muxports[1];
     for (const ch of 'CRT1 output') crt1.write_data(ch.charCodeAt(0));
@@ -168,8 +181,8 @@ async function main() {
     });
 
     if (process.argv[2]) {
-        await waitFor(() => state.terminals[0]?.bootReady, 'the ROM prompt after mounting the disk');
-        ws.send(JSON.stringify({type: 'boot', port: 0, date: '111926', time: '140000'}));
+        const bootUpload = '/api/disk?name=test.img&boot=0&date=111926&time=140000';
+        assert.equal((await request(bootUpload, 'POST', image, {Origin: origin})).status, 200);
         await waitFor(() => state.terminals[0].bootStatus === 'CENTOS is ready' || messageError, 'CENTOS boot');
         assert.ifError(messageError);
         assert.match(screen(state.terminals[0]), /CRT0 READY/);
