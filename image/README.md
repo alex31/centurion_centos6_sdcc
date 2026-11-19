@@ -38,7 +38,7 @@ automatically when called without an image argument. At `D=`, click
 
 | CENTOS command | Program |
 | --- | --- |
-| `STARTBASIC` | Start Stefan BASIC. Use `.LOAD "LIFEINT"` or `.LOAD "LIFELINE"`, then `.RUN`, for the two integer Life examples |
+| `STARTBASIC` | Start Stefan BASIC. Use `.LOAD "LIFE1D"`, then `.RUN`, for the integer Life example |
 | `.RUN XSIEVE` | SDCC-compiled prime sieve |
 | `.RUN XCONNECT4` | Connect Four |
 | `.RUN XCHESS` | Chess |
@@ -60,11 +60,11 @@ and checks the resulting boards through the emulator's VT100 screen model.
 Chess updates only the squares changed by a move, including captures,
 en passant and castling. Run `make tests-games` to repeat the game checks.
 
-`LIFEINT` prints each cell with a BASIC statement. `LIFELINE` builds each
-complete row in `L$` and prints it once. The image build compares all 27
-rows from both programs against an independent Life implementation.
+`LIFE1D` buffers each complete row in `L$` and prints it once to reduce the
+BASIC overhead of displaying the cells. The image build compares all 27 rows
+against an independent Life implementation.
 
-To time both complete LIFE programs on the same disk over three runs, use this command.
+To measure the complete LIFE1D program over three runs, use this command.
 
 ```sh
 node tests/basic-life.js build/out/image/centos-apps.img 3

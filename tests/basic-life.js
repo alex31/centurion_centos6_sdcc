@@ -63,31 +63,24 @@ async function main() {
     try {
         await session.boot();
         await command('STARTBASIC');
-        const runs = {};
-        for (const name of ['LIFEINT', 'LIFELINE']) {
-            const loaded = await command('.LOAD "' + name + '"');
-            assert.match(loaded, /Loaded/);
-            runs[name] = [];
-            for (let iteration = 0; iteration < Number(count); iteration++) {
-                measured = {rows: []};
-                const output = await command('.RUN');
-                assert.match(output, /DONE/);
-                assert.deepEqual(measured.rows, expected, name + ' differs from the Life oracle');
-                assert.ok(measured.start !== undefined && measured.last > measured.start);
-                const cpuSteps = measured.last - measured.start;
-                runs[name].push(cpuSteps);
-                console.log(`PASS ${name} · 27 matching rows · ${cpuSteps} microsteps`);
-                measured = undefined;
-            }
+        const loaded = await command('.LOAD "LIFE1D"');
+        assert.match(loaded, /Loaded/);
+        const samples = [];
+        for (let iteration = 0; iteration < Number(count); iteration++) {
+            measured = {rows: []};
+            const output = await command('.RUN');
+            assert.match(output, /DONE/);
+            assert.deepEqual(measured.rows, expected, 'LIFE1D differs from the Life oracle');
+            assert.ok(measured.start !== undefined && measured.last > measured.start);
+            const cpuSteps = measured.last - measured.start;
+            samples.push(cpuSteps);
+            console.log(`PASS LIFE1D · 27 matching rows · ${cpuSteps} microsteps`);
+            measured = undefined;
         }
-        const median = samples => {
-            const sorted = [...samples].sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-        };
-        const perCell = median(runs.LIFEINT), wholeLine = median(runs.LIFELINE);
-        const result = {rows: expected.length, columns: 69, runs, perCell, wholeLine,
-            reductionPercent: 100 * (perCell - wholeLine) / perCell};
+        const sorted = [...samples].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        const medianMicrosteps = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        const result = {program: 'LIFE1D', rows: expected.length, columns: 69, samples, medianMicrosteps};
         if (report) fs.writeFileSync(report, JSON.stringify(result, null, 2) + '\n');
         console.log(JSON.stringify(result));
     } finally {

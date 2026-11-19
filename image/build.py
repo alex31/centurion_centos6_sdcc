@@ -112,14 +112,10 @@ def main():
     run(sys.executable, BASIC / 'build.py', '--commands', '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
     games = work / 'programs.img'
-    life = ROOT / 'image/programs/life1d'
-    text_files = []
-    for name, source in [('LIFEINT', 'life1d-integer.bas'), ('LIFELINE', 'life1d-line.bas')]:
-        text = work / (name + '.txt')
-        text.write_bytes(encode((life / source).read_text()))
-        text_files.extend(['--job', f'{name}={text}'])
+    life = work / 'LIFE1D.txt'
+    life.write_bytes(encode((ROOT / 'image/programs/life1d/life1d.bas').read_text()))
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
-        '--job', f'RUNTESTS={job}', *text_files, '-o', games)
+        '--job', f'RUNTESTS={job}', '--job', f'LIFE1D={life}', '-o', games)
     final_image = work / 'centos-apps.img'
     run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', games,
         '--check-games', '-o', final_image)
