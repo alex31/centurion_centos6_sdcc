@@ -12,8 +12,11 @@ Run the Make targets from the distribution root or with `make -C tests`.
 | `make tests-games` | Play Connect Four and chess from the generated application image and check the VT100 screen after moves. Set `APP_IMAGE` to test a different image |
 
 The web test uses the real HTTP and WebSocket parsers over in-memory
-connections. Add `WEB_SEED=/path/to/CENTOS_13.IMG` to test the boot shortcut
-and keyboard input against CENTOS.
+connections. If the application image is available, it also runs the
+shipped console script, boots CENTOS, creates a guest file and checks that
+the file survives saving and reloading the image. Set
+`WEB_SEED=/path/to/CENTOS_13.IMG` to exercise another image, or `WEB_SEED=`
+to run the tests that start without a bootable disk.
 
 The compiler suites run directly in emulated memory. `test-c-emulator`
 builds the C instruction emulator from its pinned submodule for the tests.

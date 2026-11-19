@@ -1,12 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const {randomBytes} = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
 const path = require('node:path');
 const {Duplex} = require('node:stream');
 const {setTimeout: delay} = require('node:timers/promises');
+const {openConsole} = require('./web-client');
 const built = path.resolve(__dirname, '../build/out/emulator');
 const {WebSocket} = require(path.join(built, 'node_modules/ws'));
 
@@ -89,12 +91,58 @@ function screen(terminal) {
     return terminal ? String.fromCharCode(...terminal.cells.map(cell => cell & 127)) : '';
 }
 
+async function checkConsolePage(html, script, image) {
+    const page = openConsole({
+        html, script, host, request,
+        openSocket: url => new WebSocket(url, {origin, createConnection}),
+    });
+    const terminal = page.id('crt0');
+    const status = page.id('crt0-status');
+    const picker = page.id('image-file');
+    const ready = () => !page.boot[0].disabled && terminal.textContent.includes('D=');
+    const booted = () => status.textContent === 'CENTOS is ready' && terminal.textContent.includes('CRT0 READY');
+    await waitFor(ready, 'Boot CENTOS on the empty console');
+    assert.equal(page.id('save-image').disabled, true);
+    page.boot[0].click();
+    assert.equal(picker.clicks, 1);
+    await page.chooseFile('from-console.img', image);
+    await waitFor(booted, 'CENTOS boot from the file chooser', 45);
+    for (const key of ['.', 'S', 'T', 'A', 'Enter']) page.press(0, key);
+    await waitFor(() => /STATUS DISPLAY/.test(terminal.textContent) &&
+        /SYSTEM DATE:\s*11\/19\/26/.test(terminal.textContent), 'the console keyboard and boot date');
+
+    const name = 'WVT' + randomBytes(3).toString('hex').toUpperCase();
+    page.paste(0, ".NEW " + name + " ON 1 'A' 1S\n");
+    await waitFor(() => terminal.textContent.includes('DONE'), 'the guest disk write');
+    assert.match(terminal.textContent, new RegExp('14:(?:23|24):\\d{2}\\s+\\.NEW\\s+' + name));
+    const saved = await page.save();
+    assert.equal(saved.status, 200);
+    assert.match(saved.headers['content-disposition'], /from-console-snapshot\.img/);
+    assert.equal(saved.body.length, image.length);
+    assert.ok(!saved.body.equals(image), 'Save image must include writes made by CENTOS');
+
+    page.id('load-image').click();
+    assert.equal(picker.clicks, 2);
+    await page.chooseFile('from-console-snapshot.img', saved.body);
+    await waitFor(() => ready() && page.id('disk-list').textContent.includes('from-console-snapshot.img'),
+        'the reloaded disk at the ROM prompt');
+    page.boot[0].click();
+    await waitFor(booted, 'CENTOS boot from the reloaded disk', 45);
+    page.paste(0, '.DIR 1 (' + name + ')\n');
+    const entry = new RegExp(name + '\\s+A\\s+0\\s+1\\s+1S');
+    await waitFor(() => entry.test(terminal.textContent), 'the saved disk entry in the CENTOS directory');
+    assert.match(terminal.textContent, /14:(?:23|24):\d{2}\s+\.DIR/);
+    console.log('PASS: the console page boots, saves guest writes and reloads the saved disk.');
+    return page;
+}
+
 async function main() {
     const page = await request('/');
     assert.equal(page.status, 200);
     assert.match(page.body.toString(), /CRT0[\s\S]*CRT1[\s\S]*Stop server/);
     assert.match(page.headers['content-security-policy'], /frame-ancestors 'none'/);
-    assert.equal((await request('/console.js')).status, 200);
+    const script = await request('/console.js');
+    assert.equal(script.status, 200);
     assert.equal((await request('/console.css')).status, 200);
     assert.equal((await request('/api/control?action=shutdown', 'POST', null,
         {Origin: 'http://other.example'})).status, 403);
@@ -151,12 +199,14 @@ async function main() {
     assert.equal((await control('run')).status, 200);
     await waitFor(() => state.running, 'CPU resume');
 
+    const image = process.argv[2] ? fs.readFileSync(process.argv[2]) : Buffer.alloc(6651904, 0x42);
+    const consolePage = process.argv[2] ?
+        await checkConsolePage(page.body.toString(), script.body.toString(), image) : null;
     const compact = Buffer.alloc(5196800, 0xa5);
     assert.equal((await request('/api/disk?name=compact.img', 'POST', compact, {Origin: origin})).status, 200);
     await waitFor(() => state.disks.some(unit => unit.filename === 'compact.img' && unit.stride === 400),
         'a compact Hawk image');
     assert.ok((await request('/api/disk')).body.equals(compact));
-    const image = process.argv[2] ? fs.readFileSync(process.argv[2]) : Buffer.alloc(6651904, 0x42);
     assert.equal((await request('/api/disk?name=test.img', 'POST', image, {Origin: origin})).status, 200);
     await waitFor(() => state.canSave && state.disks.some(unit => unit.filename === 'test.img'),
         'the uploaded disk');
@@ -180,28 +230,20 @@ async function main() {
         });
     });
 
-    if (process.argv[2]) {
-        const bootUpload = '/api/disk?name=test.img&boot=0&date=111926&time=140000';
-        assert.equal((await request(bootUpload, 'POST', image, {Origin: origin})).status, 200);
-        await waitFor(() => state.terminals[0].bootStatus === 'CENTOS is ready' || messageError, 'CENTOS boot');
-        assert.ifError(messageError);
-        assert.match(screen(state.terminals[0]), /CRT0 READY/);
-        ws.send(JSON.stringify({type: 'paste', port: 0, text: '.STA\n'}));
-        await waitFor(() => {
-            const text = screen(state.terminals[0]);
-            return /STATUS DISPLAY/.test(text) && /SYSTEM DATE:\s*11\/19\/26/.test(text);
-        }, 'the keyboard command and date set by the boot shortcut');
-        console.log('PASS: the browser terminal booted CENTOS and accepted a command.');
-    }
-
     const exit = process.exit;
     let shutdownCode;
     try {
         process.exit = code => { shutdownCode = code; };
-        assert.equal((await control('shutdown')).body.toString(), 'Server stopped');
+        if (consolePage) {
+            await consolePage.actions.get('shutdown').click();
+            assert.equal(consolePage.id('connection').textContent, 'Server stopped');
+        } else {
+            assert.equal((await control('shutdown')).body.toString(), 'Server stopped');
+        }
         await waitFor(() => shutdownCode === 0, 'server shutdown');
     } finally {
         process.exit = exit;
+        consolePage?.close();
         ws.close();
     }
     console.log('PASS: web page, CPU controls, both CRTs, disk round trip and server shutdown.');

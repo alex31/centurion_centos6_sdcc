@@ -1,5 +1,5 @@
 TEST_JOBS ?= 2
-WEB_SEED ?=
+WEB_SEED ?= $(wildcard $(APP_IMAGE))
 TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
