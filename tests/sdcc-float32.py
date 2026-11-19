@@ -4,6 +4,7 @@ import argparse
 import ctypes
 import json
 import math
+import os
 from pathlib import Path
 import random
 import struct
@@ -15,6 +16,8 @@ parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--part',choices=['arithmetic','math','diagnostics'],action='append')
 parser.add_argument('--skip-stack',action='store_true',help='omit the larger -O0 ABI diagnostic when it exceeds bare memory')
 args=parser.parse_args();parts=args.part or ['arithmetic','math','diagnostics']
+# Leave room for the unoptimized vector program below the diagnostic ROM.
+os.environ.setdefault('CPU6_BARE_ORIGIN','1800')
 work=Path(tempfile.mkdtemp(prefix='sdcc-float32-',dir=ROOT/'build/out/tests'))
 print('Results:',work,flush=True)
 runtime=[p for p in sorted((ROOT/'lib/float32').glob('*.c')) if p.name!='math.c']
@@ -47,6 +50,7 @@ if 'arithmetic' in parts:
               (0x3f800000,0x33800000),(0x3f800001,0x33800000),(0x800000,0x3f000000)]
     pairs += [(0x447a1000,0xc0000000),(0xc47a1000,0x3f000000),(0xbf800000,1),
               (0x80000001,0x80000001),(0x800001,0x40000000),(0x7f7fffff,0x3f000000)]
+    pairs += [(0x3fc00001,0x3fc00001),(0x3f900001,0x3f900001)]
     pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(34)]
     source=head+'''float add(float a,float b){return a+b;} float sub(float a,float b){return a-b;}
 float mul(float a,float b){return a*b;} float divv(float a,float b){return a/b;}

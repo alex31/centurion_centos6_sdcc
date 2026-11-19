@@ -3,7 +3,7 @@
 uint32_t f32_mul(uint32_t a,uint32_t b)
 {
     uint32_t aa=F32_ABS(a),bb=F32_ABS(b),ma,mb,low,high,cross,part,significand;
-    unsigned sign=(unsigned)((a^b)>>31),shift;
+    unsigned sign=(unsigned)((a^b)>>31);
     int exponent;
     if (aa>F32_INF || bb>F32_INF) return F32_NAN;
     if (aa==F32_INF || bb==F32_INF)
@@ -18,9 +18,13 @@ uint32_t f32_mul(uint32_t a,uint32_t b)
     high=(ma>>16)*(mb>>16)+(cross>>16);
     part=cross<<16;
     low+=part;if (low<part) high++;
-    shift=(high&0x8000U)?21:20;
-    if (shift==21) exponent++;
-    significand=(high<<(32-shift))|(low>>shift);
-    if (low&((1UL<<shift)-1UL)) significand|=1;
+    /* Both normalization distances are fixed. Using constant shifts
+       avoids three variable-width operations on each product. */
+    if (high&0x8000UL) {
+        exponent++;
+        significand=(high<<11)|(low>>21)|((low&0x1fffffUL)!=0);
+    } else {
+        significand=(high<<12)|(low>>20)|((low&0xfffffUL)!=0);
+    }
     return f32_pack(sign,exponent,significand);
 }

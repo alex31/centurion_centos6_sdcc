@@ -90,7 +90,7 @@ async function main() {
     async function command(text) {
         const from = session.output.length;
         await session.send(text + '\r');
-        await session.waitFor('\n> ', from, 650000);
+        await session.waitFor(/\n> |ABORT\s+\d/, from, 650000);
         const output = session.output.slice(from);
         assert.doesNotMatch(output, /Bytecode error|Syntax Error|File Error|ABORT\s+\d/);
         return output;
