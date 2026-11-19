@@ -38,7 +38,7 @@ There is no decimal-input parser or floating-point conversion in this API.
 
 ## Native scalar form with SDCC
 
-With `bin/cpu6-os6-sdcc --native-int48` or the bare-metal equivalent, the same
+With `run/cpu6-os6-sdcc --native-int48` or the bare-metal equivalent, the same
 header instead declares:
 
 ```c
@@ -99,21 +99,4 @@ operation is expanded inline.
 The SDCC archive is split into function members after compiling the complete C
 unit, so its within-unit optimizations are retained while unused routines are
 not linked. Shared data is separate; private cross-member symbols are renamed.
-The host linker must use its archive rescan support, enabled by
-`scripts/build-host-linker.py` and the normal SDCC build script. FCC keeps the
-original archive organization. See [the roadmap results](../../CPU6_ROADMAP_RESULTS.md).
-
-Build and test from the workspace root:
-
-```sh
-python3 scripts/build-int48.py
-python3 tests/int48-vectors.py
-python3 tests/sdcc-native48.py
-python3 tests/big-division.py
-```
-
-The vector suites use Python integers as independent expectations. Tests
-cover both CPU cores, signed and unsigned endpoints, aliases, variable shifts,
-decimal output, native calls and the native/structure pointer ABI. The
-separate `tests/os6-int48.c` exercises multiplication and general division
-under CENTOS. No physical hardware validation is claimed.
+The distribution enables the host linker's archive-rescan support.

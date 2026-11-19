@@ -1,6 +1,6 @@
 # CPU6 software binary32
 
-Enable with `bin/cpu6-bare-sdcc --float32` or `bin/cpu6-os6-sdcc --float32`.
+Enable with `run/cpu6-bare-sdcc --float32` or `run/cpu6-os6-sdcc --float32`.
 The native compiler option is `--cpu6-float32`. `<float.h>` and `<math.h>` are
 in the SDK include directory. Use `1.0f`, including in comparisons and function
 arguments. No double or long-double type is implemented. Default argument
@@ -34,21 +34,3 @@ flags/traps, `errno` handling, NaN-payload preservation, decimal text conversion
 float `printf`, `powf` or complete hosted libc. These are deliberate limits of
 this implementation; the format and tested arithmetic do not constitute full
 IEC 60559/C Annex F conformance.
-
-Validation:
-
-```sh
-python3 scripts/build-float32.py
-python3 tests/float32-host.py
-python3 tests/sdcc-float32.py
-python3 tests/float32-link.py
-python3 benchmarks/float32-size.py
-```
-
-The host test uses independent hardware arithmetic and system libm, with
-ASan/UBSan. It disables only LeakSanitizer in the sandbox. Target tests execute
-on the instruction and microcoded CPU6 cores, checking storage, calls, recursive
-calls, callbacks, register ABI, compiler transformations, specials and math.
-The observed maximum errors over the native test set are 2/2/4/2/1/2 ULP for
-sin/cos/tan/atan/exp/log. This is a measurement, not an exhaustive error proof.
-See [the run report](../../CPU6_FLOAT_GC_RUN.md) for archived sizes and logs.
