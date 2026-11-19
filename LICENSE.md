@@ -9,6 +9,7 @@ own license terms and copyright notices.
 | --- | --- |
 | SDCC and its preprocessor | [SDCC COPYING](swext/sdcc/sdcc/COPYING), [SDCC documentation](swext/sdcc/sdcc/doc/README.txt), and file-specific notices |
 | Fuzix-Bintools | [LICENCE](swext/fuzix-bintools/LICENCE), [COPYRIGHT.MWC](swext/fuzix-bintools/COPYRIGHT.MWC), and file-specific notices |
+| C instruction emulator | [GPLv3 license](swext/centurion-c/LICENCE) and file-specific notices |
 | JavaScript emulator | [CenRE License](swext/centurion-js/LICENSE.txt) and [NOTICE](swext/centurion-js/NOTICE.md) |
 | Stefan BASIC | [Upstream LICENSE](swext/stefan-basic/LICENSE), source notices and the [GPLv3 text](swext/stefan-basic/COPYING.GPL-3) |
 | EE200 assembly runtime | [Upstream README](swext/libee200/README.md) and [redistribution status](swext/libee200/CENTURION.md) |

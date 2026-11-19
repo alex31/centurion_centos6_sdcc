@@ -4,7 +4,7 @@ SEED ?= $(OUT)/CENTOS_13.IMG
 JOBS ?= 4
 PYTHON ?= python3
 
-.PHONY: all submodules toolchain emulator basic basic-image check clean
+.PHONY: all submodules toolchain emulator basic basic-image clean
 all: toolchain emulator
 
 submodules:
@@ -25,11 +25,7 @@ basic: toolchain
 basic-image: basic emulator
 	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/install.py" "$(OUT)/basic" --seed "$(SEED)" -o "$(OUT)/basic/centos-basic.img"
 
-check: all
-	mkdir -p "$(OUT)/check"
-	"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(ROOT)/build/smoke.c" -o "$(OUT)/check/smoke.bin"
-	node "$(ROOT)/build/check-core.cjs" "$(OUT)/check" "$(ROOT)/build/smoke.json"
-	"$(ROOT)/run/cpu6-os6-sdcc" --lto --gc-sections "$(ROOT)/examples/hello_os6.c" -o "$(OUT)/check/hello.exf"
-
 clean:
 	rm -rf -- "$(OUT)"
+
+include $(ROOT)/tests/targets.mk

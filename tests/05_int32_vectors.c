@@ -1,0 +1,54 @@
+/* Host-calculated unsigned 32-bit reference vectors. */
+int main(void)
+{
+    unsigned long a, b;
+    a = 0x1234ffffUL; b = 0x00020003UL;
+    if (a + b != 0x12370002UL) return 1;
+    if (a - b != 0x1232fffcUL) return 2;
+    if (a * b != 0x369cfffdUL) return 3;
+    if (a / b != 0x0000091aUL) return 4;
+    if (a % b != 0x0000e4b1UL) return 5;
+    if ((a << 4) != 0x234ffff0UL) return 6;
+    if ((a >> 4) != 0x01234fffUL) return 8;
+    a = 0x00000000UL; b = 0x00000001UL;
+    if (a + b != 0x00000001UL) return 1;
+    if (a - b != 0xffffffffUL) return 2;
+    if (a * b != 0x00000000UL) return 3;
+    if (a / b != 0x00000000UL) return 4;
+    if (a % b != 0x00000000UL) return 5;
+    if ((a << 0) != 0x00000000UL) return 6;
+    if ((a >> 0) != 0x00000000UL) return 8;
+    a = 0xffffffffUL; b = 0x00010000UL;
+    if (a + b != 0x0000ffffUL) return 1;
+    if (a - b != 0xfffeffffUL) return 2;
+    if (a * b != 0xffff0000UL) return 3;
+    if (a / b != 0x0000ffffUL) return 4;
+    if (a % b != 0x0000ffffUL) return 5;
+    if ((a << 16) != 0xffff0000UL) return 6;
+    if ((a >> 16) != 0x0000ffffUL) return 8;
+    a = 0x80000000UL; b = 0xffffffffUL;
+    if (a + b != 0x7fffffffUL) return 1;
+    if (a - b != 0x80000001UL) return 2;
+    if (a * b != 0x80000000UL) return 3;
+    if (a / b != 0x00000000UL) return 4;
+    if (a % b != 0x80000000UL) return 5;
+    if ((a << 31) != 0x00000000UL) return 6;
+    if ((a >> 31) != 0x00000001UL) return 8;
+    a = 0xfedcba98UL; b = 0x00010203UL;
+    if (a + b != 0xfeddbc9bUL) return 1;
+    if (a - b != 0xfedbb895UL) return 2;
+    if (a * b != 0x70a35fc8UL) return 3;
+    if (a / b != 0x0000fce0UL) return 4;
+    if (a % b != 0x000003f8UL) return 5;
+    if ((a << 17) != 0x75300000UL) return 6;
+    if ((a >> 17) != 0x00007f6eUL) return 8;
+    a = 0x00010000UL; b = 0x0000ffffUL;
+    if (a + b != 0x0001ffffUL) return 1;
+    if (a - b != 0x00000001UL) return 2;
+    if (a * b != 0xffff0000UL) return 3;
+    if (a / b != 0x00000001UL) return 4;
+    if (a % b != 0x00000001UL) return 5;
+    if ((a << 1) != 0x00020000UL) return 6;
+    if ((a >> 1) != 0x00008000UL) return 8;
+    return 7;
+}

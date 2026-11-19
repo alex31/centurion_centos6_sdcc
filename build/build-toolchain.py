@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build/out"
@@ -58,7 +59,10 @@ def build_sdcc(jobs, run, cc):
     run(["make", f"-j{jobs}", "-C", "support/cpp"], work)
     run(["make", "-C", "support/cpp/gcc", "install-cpp", "install-common"], work)
     (prefix / "bin").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(work / "src/sdcc", prefix / "bin/sdcc")
+    with tempfile.TemporaryDirectory(prefix=".sdcc-", dir=prefix / "bin") as stage:
+        staged = Path(stage) / "sdcc"
+        shutil.copy2(work / "src/sdcc", staged)
+        staged.replace(prefix / "bin/sdcc")
     run([prefix / "bin/sdcc", "--version"], ROOT)
 
 

@@ -10,13 +10,14 @@ an explicit `git submodule update --remote`.
 | SDCC | [SVN r17105](https://repo.or.cz/sdcc.git/commit/f966b0004c76eb960ce61c06fabecacf3916aa94) | `master`, original Git commit |
 | Fuzix-Bintools | [ca2ab54](https://codeberg.org/EtchedPixels/Fuzix-Bintools/commit/ca2ab54a4599f60dba7ca9882956178f070e7e13) | `main`, original Git history |
 | EE200 runtime | [7b2a72e](https://github.com/EtchedPixels/Fuzix-Compiler-Kit/tree/7b2a72edea6967e7df0b32e1e898fdea1754cc67/supportee200) | `upstream`, selected assembly source files |
+| C instruction emulator | [4e1a61c](https://github.com/EtchedPixels/Centurion/tree/4e1a61c56a48f36f231e93837f4896d621290685) | `upstream`, source tree |
 | JavaScript emulator | [2bf3550](https://github.com/billsargent/centurion/tree/2bf355026e3f5d4ebdf51138088b9499ccb31b09) | `upstream`, selected TypeScript source files and notices |
 | Stefan BASIC | [86ec458](https://github.com/slviajero/tinybasic/tree/86ec458ca3dac9d156ce23bfa28a99f1f39ca656/Basic2/Posix) | `upstream`, selected POSIX interpreter sources and license |
 
-The three source imports preserve the original contents of the selected
+The source imports preserve the original contents of the selected
 files and have local Git commit IDs. The EE200 import keeps only the runtime
 assembly and attribution. The emulator import keeps the TypeScript source
-used by the headless build. The BASIC import keeps only the POSIX interpreter
+used by the headless build. The C emulator is built for testing. The BASIC import keeps only the POSIX interpreter
 sources used by the port. Each submodule has a `CENTURION.md` on the
 `centurion` branch with its changes.
 

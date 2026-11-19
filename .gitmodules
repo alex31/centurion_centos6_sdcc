@@ -23,3 +23,8 @@
 	url = https://github.com/alex31/centurion-stefan-basic.git
 	branch = centurion
 	shallow = true
+[submodule "swext/centurion-c"]
+	path = swext/centurion-c
+	url = https://github.com/alex31/centurion-c.git
+	branch = centurion
+	shallow = true

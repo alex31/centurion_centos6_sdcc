@@ -25,19 +25,20 @@ make check
 
 The Makefile initializes required submodules at the pinned commits even after
 a plain clone. Use `make submodules` to fetch every component, including the
-optional BASIC source. `make toolchain` and `make emulator` build the two
+optional BASIC source and the C instruction emulator used by the test suite. `make toolchain` and `make emulator` build the two
 components independently. All generated files go under `build/out/`. Use
 `make clean` to remove them.
 
 `make check` compiles and runs a CPU6 arithmetic program in the JavaScript
 core and builds a CENTOS executable. It runs without a disk image or network
-listeners.
+listeners. Use `make tests` for the CPU6 regression on both emulators and
+`make alltests` for the extended suite. See the [test guide](tests/README.md).
 
 ## Compile for CPU6
 
 ```sh
 run/sdcc --version
-run/cpu6-bare-sdcc -O1 build/smoke.c -o build/out/smoke.bin
+run/cpu6-bare-sdcc -O1 tests/smoke.c -o build/out/smoke.bin
 run/cpu6-os6-sdcc -Os --lto --gc-sections examples/hello_os6.c -o build/out/hello.exf
 ```
 
@@ -86,6 +87,7 @@ Enter `STARTBASIC` at the CENTOS prompt. See
 | SDCC | [CPU6 backend and frontend](swext/sdcc/CENTURION.md) |
 | Fuzix-Bintools | [EE200 assembler and CBIN linker](swext/fuzix-bintools/CENTURION.md) |
 | EE200 runtime | [Assembly helpers](swext/libee200/CENTURION.md) |
+| C instruction emulator | [Regression test core](swext/centurion-c/CENTURION.md) |
 | JavaScript emulator | [Headless CENTOS integration](swext/centurion-js/CENTURION.md) |
 | Stefan BASIC | [CENTOS port and typed bytecode VM](swext/stefan-basic/CENTURION.md) |
 
