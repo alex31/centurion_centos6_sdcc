@@ -101,3 +101,58 @@ sigmul_done:
     inr s,8
     rsr
 ; CPU6 function ___c6_sigmul end
+
+    .export ___c6_fjam
+; Shift an unsigned word pair right, merging all discarded bits into
+; the low bit. The count is a separate unsigned word argument.
+; CPU6 function ___c6_fjam begin
+___c6_fjam:
+    ldb 6(s)
+    bz jam_identity
+    lda 32
+    sub b,a
+    bl jam_large
+    xfr y,a
+    sta (-s)
+    xfr z,a
+    sta (-s)
+    xfr b,y
+    clr z
+    lda 6(s)
+    ldb 8(s)
+jam_bit:
+    rl
+    rrr a
+    rrr b
+    bnl jam_no_bit
+    inr z
+jam_no_bit:
+    dcr y
+    bnz jam_bit
+    sta (__hireg)
+    ori z,z
+    bz jam_restore
+    ldab 1
+    orib al,bl
+jam_restore:
+    lda (s+)
+    xaz
+    lda (s+)
+    xay
+    rsr
+jam_identity:
+    lda 2(s)
+    sta (__hireg)
+    ldb 4(s)
+    rsr
+jam_large:
+    lda 2(s)
+    ldb 4(s)
+    ori a,b
+    bz jam_zero
+    ldb 1
+jam_zero:
+    cla
+    sta (__hireg)
+    rsr
+; CPU6 function ___c6_fjam end

@@ -1,11 +1,13 @@
 #include "core.h"
 
+#ifndef CPU6_FLOAT_ABI_THUNKS
 uint32_t f32_jam(uint32_t value,unsigned distance)
 {
     if (!distance) return value;
     if (distance >= 32) return value != 0;
     return (value >> distance) | ((value & ((1UL << distance)-1UL)) != 0);
 }
+#endif
 
 /* Significand has three rounding bits, with sticky in bit zero, and its
    normal hidden bit at bit 26. Exponent is the encoded exponent before
