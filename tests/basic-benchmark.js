@@ -60,12 +60,23 @@ const benchmarks = {
         tolerance: [0, 0, 0.00002, 0.00002],
         c64Seconds: 116.0,
     },
+    AHL: {
+        body: ['400 FOR N=1 TO 100:A=N',
+               '500 FOR I=1 TO 10:A=SQR(A):R=R+RND(1):NEXT I',
+               '550 FOR I=1 TO 10:A=A^2:R=R+RND(1):NEXT I',
+               '600 S=S+A:NEXT N'],
+        variables: ['N', 'S', 'R'],
+        expected: [101, 5050, 1000],
+        tolerance: [0, 0.1, 75],
+        c64Seconds: 113,
+    },
 };
 
 async function main() {
     const [image, report, selection = 'BM1,BM2'] = process.argv.slice(2);
-    assert.ok(image, 'Usage: basic-benchmark.js IMAGE [REPORT] [BM1,BM2,...|all]');
-    const selected = selection === 'all' ? Object.keys(benchmarks) : selection.split(',');
+    assert.ok(image, 'Usage: basic-benchmark.js IMAGE [REPORT] [BM1,BM2,...|all|AHL]');
+    const selected = selection === 'all' ? Object.keys(benchmarks).filter(name => name.startsWith('BM')) :
+        selection.split(',');
     assert.ok(selected.every(name => Object.hasOwn(benchmarks, name)), 'Unknown BASIC benchmark');
     const session = new OS6Session(image);
     const cpu = global.window.cpu;

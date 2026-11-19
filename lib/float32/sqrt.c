@@ -2,22 +2,21 @@
 
 uint32_t f32_sqrt(uint32_t a)
 {
-    uint32_t magnitude=F32_ABS(a),mantissa,high,low,remainder=0,root=0,trial,pair;
+    uint32_t magnitude=F32_ABS(a),mantissa,radicand,remainder=0,root=0,trial;
     int exponent;
-    unsigned i,shift;
+    unsigned i;
     if (magnitude>F32_INF) return F32_NAN;
     if (!magnitude) return a;
     if (a&F32_SIGN) return F32_NAN;
     if (magnitude==F32_INF) return a;
     exponent=f32_unpack(a,&mantissa)-127;
     if (exponent&1) {mantissa<<=1;exponent--;}
-    high=mantissa>>3;low=mantissa<<29;
-    /* Restoring square root of a 54-bit radicand. The remainder and root
-       fit in 32 bits throughout; high/low supply two input bits per step. */
+    /* The radicand is mantissa followed by 29 zero bits. Consume its
+       54 bits from the high end, refilling the stream with zeros. */
+    radicand=mantissa<<7;
     for (i=27;i;i--) {
-        shift=2*(i-1);
-        pair=shift>=32 ? (high>>(shift-32))&3U : (low>>shift)&3U;
-        remainder=(remainder<<2)|pair;
+        remainder=(remainder<<2)|(radicand>>30);
+        radicand<<=2;
         root<<=1;trial=(root<<1)|1U;
         if (remainder>=trial) {remainder-=trial;root++;}
     }

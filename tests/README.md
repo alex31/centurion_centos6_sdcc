@@ -21,6 +21,10 @@ eight tests or give a comma-separated selection. BM6 and BM7 put the
 `DIM` declaration in the header required by this BASIC dialect. Benchmark
 programs and reference Commodore 64 timings follow [Practical Computing,
 January 1984](https://www.worldradiohistory.com/UK/Practical-Computing/80s/Practical-Computing-1984-01-S-OCR.pdf).
+Use `BASIC_BENCHMARKS=AHL` for the square-root, square and random-number
+workload from [Creative Computing, November 1983](https://archive.org/stream/creativecomputing-1983-11/Creative_Computing_v09_n11_1983_November_djvu.txt).
+The test uses the article's `RND(1)` variant. The published Commodore 64
+time was 1 minute 53 seconds.
 
 The web test uses the real HTTP and WebSocket parsers over in-memory
 connections. If the application image is available, it also runs the
