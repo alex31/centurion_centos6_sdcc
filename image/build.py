@@ -109,7 +109,8 @@ def main():
     programs = build_programs(work)
     tests, job, test_count = build_tests(work)
     basic_artifacts = work / 'basic'
-    run(sys.executable, BASIC / 'build.py', '--commands', '--stack-size', '1536',
+    run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'size',
+        '--no-auto-inline', '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
     games = work / 'programs.img'
     life = work / 'LIFE1D.txt'

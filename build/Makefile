@@ -22,7 +22,7 @@ emulator:
 
 basic: toolchain
 	git -C "$(ROOT)" submodule update --init -- swext/stefan-basic
-	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/build.py" --commands --stack-size 1536 -o "$(OUT)/basic/BASIC.exf"
+	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/build.py" --commands --vm-math --profile size --no-auto-inline --stack-size 1536 -o "$(OUT)/basic/BASIC.exf"
 
 basic-image: basic emulator
 	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/install.py" "$(OUT)/basic" --seed "$(SEED)" -o "$(OUT)/basic/centos-basic.img"
