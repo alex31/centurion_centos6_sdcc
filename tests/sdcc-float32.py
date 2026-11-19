@@ -51,6 +51,7 @@ if 'arithmetic' in parts:
     pairs += [(0x447a1000,0xc0000000),(0xc47a1000,0x3f000000),(0xbf800000,1),
               (0x80000001,0x80000001),(0x800001,0x40000000),(0x7f7fffff,0x3f000000)]
     pairs += [(0x3fc00001,0x3fc00001),(0x3f900001,0x3f900001)]
+    pairs += [(0x3f80ffff,0x3fffffff),(0x3f808000,0x3ffffffe),(0x3f807fff,0x3f810000)]
     pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(34)]
     source=head+'''float add(float a,float b){return a+b;} float sub(float a,float b){return a-b;}
 float mul(float a,float b){return a*b;} float divv(float a,float b){return a/b;}

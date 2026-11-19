@@ -1,8 +1,14 @@
 #include "core.h"
+#ifdef CPU6_FLOAT_ABI_THUNKS
+extern uint32_t __c6_sigmul(uint32_t a,uint32_t b,int *exponent);
+#endif
 
 uint32_t f32_mul(uint32_t a,uint32_t b)
 {
-    uint32_t aa=F32_ABS(a),bb=F32_ABS(b),ma,mb,low,high,cross,part,significand;
+    uint32_t aa=F32_ABS(a),bb=F32_ABS(b),ma,mb,significand;
+#ifndef CPU6_FLOAT_ABI_THUNKS
+    uint32_t low,high,cross,part;
+#endif
     unsigned sign=(unsigned)((a^b)>>31);
     int exponent;
     if (aa>F32_INF || bb>F32_INF) return F32_NAN;
@@ -12,6 +18,9 @@ uint32_t f32_mul(uint32_t a,uint32_t b)
     if (aa==0x3f800000UL) return b^(a&F32_SIGN);
     if (bb==0x3f800000UL) return a^(b&F32_SIGN);
     exponent=f32_unpack(a,&ma)+f32_unpack(b,&mb)-127;
+#ifdef CPU6_FLOAT_ABI_THUNKS
+    significand=__c6_sigmul(ma,mb,&exponent);
+#else
     /* Exact 24x24 -> 48-bit product, represented by two 32-bit words. */
     low=(ma&65535UL)*(mb&65535UL);
     cross=(ma>>16)*(mb&65535UL)+(mb>>16)*(ma&65535UL);
@@ -26,5 +35,6 @@ uint32_t f32_mul(uint32_t a,uint32_t b)
     } else {
         significand=(high<<12)|(low>>20)|((low&0xfffffUL)!=0);
     }
+#endif
     return f32_pack(sign,exponent,significand);
 }
