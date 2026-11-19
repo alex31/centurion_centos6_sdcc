@@ -1,7 +1,367 @@
 #!/usr/bin/env python3
-"""CPU6 C compiler with automatic mmu_page attributes."""
+"""Compile attributed CPU6 C into an automatically managed CENTOS MMU program."""
+import argparse
+import hashlib
+import json
+import os
 from pathlib import Path
+import re
 import runpy
+import shutil
+import subprocess
+import sys
+import tempfile
 
-runpy.run_path(str(Path(__file__).resolve().parents[1] / 'experiments/centos-mmu/automatic/cc.py'),
-               run_name='__main__')
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parents[1]
+HERE = ROOT / 'os6/mmu/automatic'
+sys.path.insert(0, str(ROOT / 'scripts'))
+import cpu6_gc as gc
+from cpu6_object import attach, symbols,unpack
+from cpu6_provenance import compiler_info,input_hashes,write_manifest
+
+DECL = re.compile(r'^; CPU6 MMU D (\S+) (-?\d+) (\w+) (\d+) (.*)$', re.M)
+ESCAPE = re.compile(r'^; CPU6 MMU E (\S+) (.*)$', re.M)
+TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|\b[A-Za-z_]\w*\b')
+SEGMENT = re.compile(r'^\s*\.(code|data|bss|literal)\s*$')
+PAGE = 2048
+CAPACITY = 10 * PAGE
+
+
+def rename(text, mapping):
+    return TOKEN.sub(lambda m: mapping.get(m[0], m[0]), text)
+
+
+def map_symbols(path):
+    return {f[2]: int(f[0], 16) for line in path.read_text().splitlines() if len(f := line.split()) == 3}
+
+
+def first_fit(size, occupied, low=0, high=CAPACITY, starting_page=None):
+    start = low
+    for left, right in sorted(occupied) + [(high, high)]:
+        if right <= start:
+            continue
+        if start + size <= left and start + size <= high:
+            if starting_page is None or start // PAGE == starting_page:
+                return start
+        start = max(start, right)
+        if starting_page is not None and start // PAGE != starting_page:
+            return None
+    return None
+
+
+def initialization(objects, image):
+    stream = bytearray()
+    for address, size in objects:
+        data = image[address:address+size]
+        if len(data) != size:
+            raise ValueError('initial image does not cover a mapped object')
+        # Separate long zero runs; short zero sequences stay in copied data.
+        at = 0
+        while at < size:
+            zero = at
+            while zero < size and not data[zero]: zero += 1
+            if zero - at >= 8 or zero == size:
+                end, mode = zero, 0
+            else:
+                end = at + 1
+                while end < size:
+                    z = end
+                    while z < size and not data[z]: z += 1
+                    if z - end >= 8: break
+                    end = max(end + 1, z)
+                mode = 1
+            count = end - at
+            stream += (address + at).to_bytes(2, 'big') + count.to_bytes(2, 'big') + bytes([mode])
+            if mode: stream += data[at:end]
+            at = end
+    return bytes(stream) + b'\0\0'
+
+
+def main():
+    parser = argparse.ArgumentParser(prog='cpu6-mmu-cc', description=__doc__)
+    parser.add_argument('sources', nargs='+', type=Path)
+    parser.add_argument('-o', required=True, type=Path)
+    parser.add_argument('-c', action='store_true', help='compile one C file to a self-contained object')
+    parser.add_argument('-I', action='append', default=[])
+    parser.add_argument('-D', action='append', default=[])
+    parser.add_argument('--float32', action='store_true')
+    parser.add_argument('--stack-size', type=int, default=1024)
+    parser.add_argument('--save-temps', type=Path)
+    parser.add_argument('-O',choices=['0','1','s'],default='1')
+    parser.add_argument('--no-lto',action='store_true',help='disable cross-source inlining; placed functions are never imported')
+    args = parser.parse_args()
+    sources = [p.resolve(strict=True) for p in args.sources]
+    if any(p.suffix not in ['.c','.o','.a'] for p in sources): parser.error('inputs must be C sources, objects or archives')
+    if args.c and (len(sources)!=1 or sources[0].suffix!='.c'): parser.error('-c requires one C source')
+    output = args.o.resolve()
+    if output.suffix != ('.o' if args.c else '.exf'): parser.error('-o must name an .o object or .exf executable')
+    name = output.stem.upper()
+    if not args.c and not re.fullmatch('[A-Z][A-Z0-9]{0,9}', name):
+        parser.error('the output stem must be a CENTOS name of 1-10 letters/digits')
+    if not 256 <= args.stack_size <= 8192: parser.error('stack size must be in 256..8192')
+    destinations = [output, output.with_suffix('.mmu.exf'), output.with_suffix('.json'),
+                    output.with_suffix('.map'), output.with_suffix('.job')]
+    if any(p in sources for p in destinations): parser.error('outputs cannot overwrite inputs')
+    compiler = ROOT / 'build/out/toolchain/sdcc-cpu6/bin/sdcc'
+    if not compiler.exists(): parser.error('build the compiler first with make toolchain')
+    env = dict(os.environ)
+    env['PATH'] = str(ROOT / 'build/out/toolchain/sdcc-cpu6/bin') + os.pathsep + env.get('PATH', '')
+    flags = ['-mcpu6', '--cpu6-mmu-metadata', '-S', '--std=c99', '--opt-code-size' if args.O=='s' else '--opt-code-speed',
+             '-D__cpu6__=1', '-D__ee200__=1', '-D__CPU6_OS6__=1',
+             '-I' + str(ROOT / 'os6/include'), '-I' + str(ROOT / 'baremetal/include')]
+    flags += ['-I' + str(Path(p).resolve()) for p in args.I] + ['-D' + s for s in args.D]
+    if args.float32: flags.append('--cpu6-float32')
+    if args.O=='0':flags.append('--cpu6-stack-only')
+    with tempfile.TemporaryDirectory(prefix='cpu6-auto-mmu-') as directory:
+        work = Path(directory)
+        commands = []
+        def run(command):
+            commands.append(list(map(str, command)))
+            subprocess.run(command, env=env, check=True)
+        def assemble(text, stem):
+            asm, obj = work / (stem + '.s'), work / (stem + '.o')
+            # EE200's input buffer is 128 bytes. Retain full source locations
+            # in object IR, but do not feed metadata/comments to its parser.
+            (work / (stem + '.ir.s')).write_text(text)
+            asm.write_text('\n'.join(line for line in text.splitlines() if not line.lstrip().startswith(';'))+'\n')
+            run([ROOT / 'build/out/toolchain/bin/asee200', '-o', obj, asm])
+            attach(obj, text)
+            return obj
+        def compile(source, stem, more=()):
+            asm = work / (stem + '.s')
+            run([compiler, *flags, *more, '-I' + str(source.parent), '-o', asm, source])
+            return assemble(asm.read_text(), stem)
+        try:
+            user_objects = [compile(source, 'user%d' % i) if source.suffix=='.c' else source
+                            for i, source in enumerate(sources)]
+            if args.c:
+                shutil.copyfile(user_objects[0],output)
+                write_manifest(output,compiler_info(compiler),flags,input_hashes(sources),profile='O'+args.O,kind='MMU object',lto=False)
+                print(str(output)+': CPU6 object with MMU metadata')
+                return
+            # Match the ordinary driver's cross-source LTO. Objects/archives
+            # retain their own IR and are still pruned at link time; importing
+            # placed functions is forbidden by the shared optimizer.
+            source_units=[(i,p) for i,p in enumerate(sources) if p.suffix=='.c']
+            if not args.no_lto and source_units:
+                assemblies=[]
+                for i,source in source_units:
+                    asm=work/('lto-user%d.s'%i);asm.write_text(unpack(user_objects[i].read_bytes())[1]['assembly']);assemblies.append(asm)
+                runpy.run_path(str(ROOT/'scripts/cpu6_lto.py'))['optimize'](assemblies,work/'lto-report.json')
+                for (i,source),asm in zip(source_units,assemblies):user_objects[i]=assemble(asm.read_text(),'lto-user%d'%i)
+            digest = hashlib.sha256()
+            for obj in user_objects: digest.update(obj.read_bytes())
+            for p in [compiler, Path(__file__).resolve(), HERE/'runtime.c', HERE/'gate.s', HERE/'module-start.s', ROOT/'os6/crt0.s',
+                      ROOT/'scripts/cpu6_gc.py', ROOT/'scripts/cpu6_lto.py', ROOT/'scripts/cpu6_object.py', ROOT/'run/mkos6bin.py',
+                      ROOT/'build/out/toolchain/bin/asee200', ROOT/'build/out/toolchain/bin/ldee200',
+                      *sorted((ROOT/'build/out/toolchain/lib/os6').glob('*')),
+                      *sorted((ROOT/'build/out/toolchain/lib/cpu6').glob('*.a')), ROOT/'build/out/toolchain/lib/ee200/libee200.a']:
+                if p.is_file(): digest.update(p.read_bytes())
+            digest.update(str((args.stack_size,args.O,args.no_lto)).encode())
+            identity = digest.digest()[:4]
+            id1, id2 = int.from_bytes(identity[:2], 'big'), int.from_bytes(identity[2:], 'big')
+            module_name = 'M' + identity.hex().upper()
+            runtime = compile(HERE / 'runtime.c', 'runtime', ['-DMMU_ID1=%dU' % id1, '-DMMU_ID2=%dU' % id2])
+            gate = assemble((HERE / 'gate.s').read_text(), 'gate')
+            prefix_text = (HERE / 'module-start.s').read_text()
+            prefix = assemble(prefix_text, 'prefix')
+            prefix_size = symbols(prefix.read_bytes())[2][5]
+            placeholder = assemble('.setcpu 6\n.literal\n.export ___mp_initial\n___mp_initial:\n.word 0\n', 'placeholder')
+            crt_text = (ROOT / 'os6/crt0.s').read_text()
+            crt_text, replacements = re.subn(r'(?m)^([ \t]*)jsr[ \t]+_main[ \t]*$', r'\1jsr ___mp_launch', crt_text)
+            if replacements != 1 or crt_text.count('__osstack:\n\t.ds 1024') != 1:
+                raise ValueError('unsupported CENTOS CRT layout')
+            crt_text = crt_text.replace('__osstack:\n\t.ds 1024', '__osstack:\n\t.ds %d' % args.stack_size)
+            crt = assemble(crt_text, 'crt0')
+            libraries = []
+            for filename in ['libprintf-sdcc.a', 'libos6.a']:
+                p = ROOT / 'build/out/toolchain/lib/os6' / filename
+                if p.exists(): libraries.append(p)
+            if args.float32: libraries.append(ROOT / 'build/out/toolchain/lib/cpu6/libfloat32-sdcc.a')
+            libraries += [ROOT / 'build/out/toolchain/lib/cpu6/libcompiler-sdcc.a', ROOT / 'build/out/toolchain/lib/ee200/libee200.a']
+            paths = [crt, *user_objects, runtime, gate, prefix, placeholder,
+                     ROOT / 'build/out/toolchain/lib/os6/putchar.o', ROOT / 'build/out/toolchain/lib/os6/puts.o', *libraries]
+            units = gc.read_units(paths)
+            def user_unit(unit):
+                return any(unit.name==str(p) or unit.name.startswith(str(p)+'(') for p in user_objects)
+            for unit in units:
+                if user_unit(unit) and unit.metadata and '; CPU6 MMU V 1 float32=1' in unit.metadata['assembly'] and not args.float32:
+                    raise ValueError(unit.name+': float32 object requires --float32 at link time')
+            live = gc.select(units, ['start', '__mmu_start'])
+            definitions = {}
+            for unit in units:
+                for symbol in unit.exports: definitions.setdefault(symbol, []).append(unit.local[symbol])
+            def resolve(unit, name):
+                if name in unit.local: return unit.local[name]
+                choices = definitions.get(name, [])
+                return sorted(choices, key=lambda atom: atom.unit.library)[0] if choices else None
+            selected = {}
+            for unit in units:
+                if not unit.metadata: continue
+                for symbol, page, kind, size, location in DECL.findall(unit.metadata['assembly']):
+                    atom = resolve(unit, symbol[:16])
+                    if atom is None: continue
+                    if atom.unit.opaque and atom in live:
+                        raise ValueError(location + ': cannot place an opaque assembly unit in an MMU page')
+                    if atom in selected and selected[atom]['page'] != int(page):
+                        raise ValueError(location + ': conflicting mmu_page declarations for ' + symbol)
+                    selected[atom] = {'symbol': symbol[:16], 'page': int(page), 'kind': kind,
+                                      'declaredSize': int(size), 'location': location}
+            for unit in units:
+                if unit.metadata:
+                    for symbol, location in ESCAPE.findall(unit.metadata['assembly']):
+                        if resolve(unit, symbol[:16]) in selected:
+                            raise ValueError(location + ': address/array decay/function pointer of MMU object ' + symbol + ' is forbidden')
+                else:
+                    if any(resolve(unit, s) in selected for s in unit.imports):
+                        raise ValueError(unit.name + ': opaque code references an MMU object; compile the caller with MMU metadata')
+            selected = {atom:info for atom,info in selected.items() if atom in live}
+            if not any(user_unit(atom.unit) for atom in selected):
+                ordinary, ordinary_map = work/'ordinary.exf', work/'ordinary.map'
+                optional = ['--float32'] if args.float32 else []
+                run([ROOT/'run/cpu6-os6-sdcc', '--gc-sections', '--stack-size', str(args.stack_size),
+                     '-O'+args.O,*optional, *user_objects, '-o', ordinary, '--map', ordinary_map])
+                normal = map_symbols(ordinary_map)
+                shutil.copyfile(ordinary, output)
+                shutil.copyfile(ordinary_map, output.with_suffix('.map'))
+                output.with_suffix('.json').write_text(json.dumps({'format':'cpu6-automatic-mmu',
+                    'mode':'resident', 'name':name, 'moduleBytes':0, 'modulePages':0,
+                    'residentEnd':normal['__end'], 'objects':[]},indent=2)+'\n')
+                output.with_suffix('.job').write_text('.RUN '+name+'\n')
+                write_manifest(output,compiler_info(compiler),flags,input_hashes([*sources,*libraries]),
+                               profile='O'+args.O,lto=not args.no_lto,ltoSourceUnits=len(source_units),gc=True,mode='resident')
+                print('%s: %d resident bytes; no live MMU objects' % (name,normal['__end']))
+                return
+            for unit in units:
+                if user_unit(unit) and (unit.opaque or not unit.metadata or '; CPU6 MMU V 1 ' not in unit.metadata['assembly']):
+                    raise ValueError(unit.name + ': automatic MMU requires objects compiled by cpu6-mmu-cc, without inline assembly')
+                if any('_os6_mmu_call' in atom.defined for atom in unit.atoms if atom in live):
+                    raise ValueError('the manual MMU SDK cannot be mixed with compiler-managed mappings')
+            mappings = {}
+            for index, unit in enumerate(units):
+                mappings[unit] = {name: 'Q%03x%08x' % (index, n) for n, name in enumerate(sorted(unit.local))
+                                  if name not in unit.exports}
+            def lines(atom, segment=None):
+                result = []
+                for line in atom.lines:
+                    if SEGMENT.match(line):
+                        result.append('.' + (segment or SEGMENT.match(line)[1]))
+                    else: result.append(rename(line, mappings[atom.unit]))
+                return result
+            def exported(atom):
+                return ['.export ' + mappings[atom.unit].get(s, s) for s in sorted(atom.defined)]
+            for index, (atom, info) in enumerate(selected.items()):
+                text = '\n'.join(['.setcpu 6', '.code', *exported(atom), *lines(atom, 'code')]) + '\n'
+                obj = assemble(text, 'measure%d' % index)
+                size = symbols(obj.read_bytes())[2][1]
+                if not size or size > CAPACITY: raise ValueError(info['location'] + ': MMU object is too large')
+                info['bytes'] = size
+                info['linkedSymbol'] = mappings[atom.unit].get(info['symbol'], info['symbol'])
+            occupied = [(0, prefix_size)]
+            pinned = sorted((a for a in selected if selected[a]['page'] > 0),
+                            key=lambda a: (selected[a]['page'], -selected[a]['bytes'], selected[a]['symbol']))
+            automatic = sorted((a for a in selected if selected[a]['page'] < 0),
+                               key=lambda a: (-selected[a]['bytes'], selected[a]['symbol']))
+            for atom in [*pinned, *automatic]:
+                info = selected[atom]
+                page = info['page'] - 1 if info['page'] > 0 else None
+                at = first_fit(info['bytes'], occupied, (page or 0) * PAGE, starting_page=page)
+                if at is None: raise ValueError(info['location'] + ': MMU page capacity/placement conflict for ' + info['symbol'])
+                info.update(offset=at, address=0x1000+at, firstPage=at//PAGE,
+                            lastPage=(at+info['bytes']-1)//PAGE)
+                occupied.append((at, at+info['bytes']))
+            bank_size = max(end for _, end in occupied)
+            bank_lines = [prefix_text]
+            cursor = prefix_size
+            for atom in sorted(selected, key=lambda a: selected[a]['offset']):
+                info = selected[atom]
+                if info['offset'] > cursor: bank_lines += ['.discard', '.ds %d' % (info['offset'] - cursor)]
+                bank_lines += ['.discard', *exported(atom), *lines(atom, 'discard')]
+                cursor = info['offset'] + info['bytes']
+            bank = assemble('\n'.join(bank_lines) + '\n', 'bank')
+            residents = []
+            for index, unit in enumerate(units):
+                if unit.name in [str(prefix), str(placeholder)]: continue
+                kept = [a for a in unit.atoms if a in live and a not in selected]
+                if not kept: continue
+                if unit.opaque:
+                    if symbols(unit.raw)[2][5] or symbols(unit.raw)[2][9]:
+                        raise ValueError(unit.name + ': reserved MMU/initializer section already in use')
+                    obj = work / ('resident%03d.o' % index); obj.write_bytes(unit.raw)
+                else:
+                    text = ['.setcpu 6']
+                    for atom in kept: text += ['.'+atom.segment, *exported(atom), *lines(atom)]
+                    obj = assemble('\n'.join(text)+'\n', 'resident%03d' % index)
+                residents.append(obj)
+            def link(stem, init, literal_base):
+                data = ['.setcpu 6', '.literal', '.export ___mp_initial', '___mp_initial:']
+                data += ['.byte ' + ','.join(map(str, init[i:i+24])) for i in range(0, len(init), 24)]
+                initial = assemble('\n'.join(data) + '\n', stem+'-initial')
+                binary, mapping = work/(stem+'.bin'), work/(stem+'.map')
+                run([ROOT/'build/out/toolchain/bin/ldee200', '-b', '-C', str(0x8200), '-S', str(0x8087),
+                     '-X', str(0x1000), '-f', 'CDBX', '-L', str(literal_base), '-m', mapping, '-o', binary,
+                     *residents, bank, initial])
+                return binary.read_bytes(), map_symbols(mapping)
+            preliminary, sym = link('preliminary', b'\0\0', 0x6000)
+            if sym['__end'] < 0x8200: raise ValueError('resident image wraps the 16-bit address space')
+            initialized = [(info['address'], info['bytes']) for info in selected.values() if info['kind']=='object']
+            initial = initialization(initialized, preliminary)
+            image, final = link('program', initial, sym['__end'])
+            corrected = initialization(initialized, image)
+            if corrected != initial:
+                initial = corrected
+                image, final = link('program', initial, sym['__end'])
+            end = final['__literal'] + final['__literal_size']
+            if (final['__common'], final['__common_size'], final['__osctx'], final['__osctxp']) != (0x8087, 216, 0x808c, 0x815d):
+                raise ValueError('generated CRT does not match the CENTOS 7.13 application layout')
+            if end > 0x10000 or final['__discard_size'] != bank_size:
+                raise ValueError('program exceeds its resident or MMU memory budget')
+            for info in selected.values():
+                if final[info['linkedSymbol']] != info['address']:
+                    raise ValueError('linker did not preserve the requested MMU placement')
+            # CENTOS always enters this profile at logical 0x8000. Values are
+            # already linked at logical addresses; neither CBIN has fixups.
+            pack = runpy.run_path(str(ROOT/'run/mkos6bin.py'))['make_cbin_sections']
+            common = [(0x8c, image[0x808c:0x8097]), (0xe7, image[0x80e7:0x8107]),
+                      (0x152, image[0x8152:0x815f])]
+            parts = common + [(0x200, image[0x8200:final['__bss']]),
+                              (final['__literal']-0x8000, image[final['__literal']:end])]
+            resident_cbin = pack(parts, final['start']-0x8000)
+            module_cbin = pack([(0, image[0x1000:0x1000+bank_size])], 0)
+            descriptor = {'format':'cpu6-automatic-mmu', 'abi':1, 'mode':'mmu', 'name':name, 'moduleName':module_name,
+                          'moduleId':identity.hex(), 'moduleBytes':bank_size, 'modulePages':(bank_size+2047)//2048,
+                          'residentEnd':end-0x8000, 'residentBytes':end-0x8200,
+                          'initializationBytes':len(initial), 'float32':args.float32,
+                          'objects':[{**{k:v for k,v in info.items() if k!='page'},
+                                      'requestedPage':'auto' if info['page']<0 else info['page']-1}
+                                     for info in selected.values()],
+                          'programSha256':hashlib.sha256(resident_cbin).hexdigest(),
+                          'moduleSha256':hashlib.sha256(module_cbin).hexdigest(),
+                          'compilerSha256':hashlib.sha256(compiler.read_bytes()).hexdigest(),
+                          'discardedAtoms':sum(a not in live for u in units for a in u.atoms)}
+            output.write_bytes(resident_cbin)
+            output.with_suffix('.mmu.exf').write_bytes(module_cbin)
+            provenance=write_manifest(output,compiler_info(compiler),flags,input_hashes([*sources,*libraries,HERE/'runtime.c',HERE/'gate.s',HERE/'module-start.s']),
+                                     profile='O'+args.O,lto=not args.no_lto,ltoSourceUnits=len(source_units),gc=True,mode='mmu')
+            write_manifest(output.with_suffix('.mmu.exf'),provenance['compiler'],flags,provenance['inputs'],
+                           profile='O'+args.O,lto=not args.no_lto,ltoSourceUnits=len(source_units),gc=True,kind='MMU companion')
+            descriptor.update(compiler=provenance['compiler'],profile='O'+args.O,lto=not args.no_lto,ltoSourceUnits=len(source_units),gc=True)
+            output.with_suffix('.json').write_text(json.dumps(descriptor, indent=2)+'\n')
+            shutil.copyfile(work/'program.map', output.with_suffix('.map'))
+            output.with_suffix('.job').write_text('.LOAD BASIC '+module_name+'\n.RUN '+name+'\n')
+            print('%s: resident %d bytes; MMU %d bytes / %d pages' %
+                  (name, descriptor['residentEnd'], bank_size, descriptor['modulePages']))
+        finally:
+            (work/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
+            if args.save_temps:
+                args.save_temps.mkdir(parents=True, exist_ok=True)
+                for p in work.iterdir():
+                    if p.is_file(): shutil.copyfile(p, args.save_temps/p.name)
+
+
+if __name__ == '__main__':
+    try: main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print('cpu6-mmu-cc:', error, file=sys.stderr)
+        sys.exit(1)
