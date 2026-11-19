@@ -17,4 +17,6 @@ own license terms and copyright notices.
 | Historical EE200 assembly runtime (optional checkout) | [Upstream notice](https://github.com/EtchedPixels/Fuzix-Compiler-Kit#licence) and [source provenance](doc/sources.md) |
 
 The build installs TypeScript and ws from npm, with their own notices.
-CENTOS disk images are user-supplied inputs.
+Firmware packs and CENTOS disk images are local inputs supplied separately.
+See the [Centurion archive notice](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+for access information.

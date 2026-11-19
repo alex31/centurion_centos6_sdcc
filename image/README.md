@@ -4,18 +4,20 @@ From the distribution root, run either command to build the SDK, the
 applications and the disk image.
 
 ```sh
-./dobuild -j2 JOBS=4
-make all
+./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
+make all SEED=/path/to/CENTOS_13.IMG
 ```
 
 `make -C image` also builds the complete image. The compiler-only build is
 `make sdk`. The image uses the distribution's SDCC and the sources under
 `image/programs/`, `tests/` and the pinned submodules.
 
-The default seed is the [archived CENTOS 13 Hawk image](https://github.com/Nakazoto/CenturionComputer/blob/8682b5865979315cf9e085e75ff8547ff3be473e/Software/Data%20Packs/CENTOS_13.IMG). The first complete
-build downloads that revision and verifies its SHA-256. To use a local
-512-byte-stride CENTOS seed, set `SEED=/path/to/CENTOS_13.IMG`. The seed
-and generated output images live under `build/out/image/`. Intermediate
+Provide a local 512-byte-stride CENTOS 13 Hawk image that you have
+permission to use. The build accepts it through `SEED` or at
+`build/out/image/CENTOS_13.IMG`. See the
+[Centurion archive notice](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+for information on access to operating system images. Generated images
+live under `build/out/image/`. Intermediate
 files, executable maps and build reports are grouped by run under
 `build/out/image/work/`.
 

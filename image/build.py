@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """Build the SDCC examples and assemble a bootable CENTOS application image."""
 import argparse
-import hashlib
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/out/image'
@@ -19,34 +17,17 @@ DEFAULT_OUTPUT = OUT / 'centos-apps.img'
 sys.path[:0] = [str(ROOT / 'tests'), str(ROOT / 'scripts')]
 from regression_cases import regression_cases
 from centos_text import encode
-SEED_URL = (
-    'https://raw.githubusercontent.com/Nakazoto/CenturionComputer/'
-    '8682b5865979315cf9e085e75ff8547ff3be473e/Software/Data%20Packs/CENTOS_13.IMG'
-)
 SEED_BYTES = 6651904
-SEED_SHA256 = '9fe506a6a9b16ac2ea2d1a2e955881dd528874fc2eedb600a5ab805921494a32'
 
 
 def ensure_seed(seed):
-    if seed.is_file():
-        if seed.stat().st_size != SEED_BYTES:
-            raise ValueError('The application image requires a 512-byte-stride CENTOS seed')
-        return
-    if seed != DEFAULT_SEED:
-        raise FileNotFoundError(f'CENTOS seed image not found: {seed}')
-    print('Downloading the archived CENTOS 13 seed image', flush=True)
-    try:
-        with urlopen(SEED_URL, timeout=45) as response:
-            data = response.read(SEED_BYTES + 1)
-    except OSError as error:
-        raise OSError(f'Unable to fetch the CENTOS seed image. Supply SEED=/path/to/CENTOS_13.IMG ({error})')
-    if len(data) != SEED_BYTES or hashlib.sha256(data).hexdigest() != SEED_SHA256:
-        raise ValueError('The downloaded CENTOS seed image failed size or SHA-256 verification')
-    with tempfile.TemporaryDirectory(prefix='.seed-', dir=OUT) as directory:
-        pending = Path(directory) / seed.name
-        pending.write_bytes(data)
-        # Do not replace an image another build or the user has staged.
-        os.link(pending, seed)
+    if not seed.is_file():
+        raise FileNotFoundError(
+            f'CENTOS seed image not found: {seed}. Supply your local copy with '
+            'SEED=/path/to/CENTOS_13.IMG.'
+        )
+    if seed.stat().st_size != SEED_BYTES:
+        raise ValueError('The application image requires a 512-byte-stride CENTOS seed')
 
 
 def build_programs(work):

@@ -1,6 +1,8 @@
 # CPU6 regression tests
 
 Run the Make targets from the distribution root or with `make -C tests`.
+Tests that run the JavaScript core use the
+[local firmware pack](../README.md#build).
 
 | Target | Coverage |
 | --- | --- |

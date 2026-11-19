@@ -17,7 +17,7 @@
 [submodule "swext/centurion-js"]
 	path = swext/centurion-js
 	url = https://github.com/alex31/centurion-js.git
-	branch = centurion
+	branch = centurion-inputs
 	shallow = true
 [submodule "swext/stefan-basic"]
 	path = swext/stefan-basic

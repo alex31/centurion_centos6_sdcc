@@ -20,8 +20,15 @@ Run the build from a checkout in the Linux filesystem under WSL2.
 
 ```sh
 make -j2 JOBS=4
+python3 scripts/import-cenre-firmware.py /path/to/local/cen.ts
 make check
 ```
+
+The emulator reads a firmware pack supplied locally. The import command
+extracts the tables from a local firmware-bearing CenRE source file. It
+writes `build/out/emulator/firmware.json` by default. To store the pack
+outside the build directory, give the import command `--output` and set
+`CENTURION_FIRMWARE` to that file before running the emulator or tests.
 
 The Makefile initializes required submodules at the pinned commits even after
 a plain clone. Use `make submodules` to fetch the build and test components,
@@ -85,8 +92,9 @@ disk in memory and `q` stops the server.
 
 ## Build the complete application image
 
-Run `./dobuild` or `make all` to build the compiler, the applications and
-the CENTOS disk image. The result is `build/out/image/centos-apps.img`.
+Run `./dobuild SEED=/path/to/CENTOS_13.IMG` to build the compiler, the
+applications and the CENTOS disk image using your local seed and firmware
+pack. The result is `build/out/image/centos-apps.img`.
 See the [image build guide](image/README.md) for its applications and
 `RUNTESTS`. Use `make sdk` for the compiler and emulator alone.
 
