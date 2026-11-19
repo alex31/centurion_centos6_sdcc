@@ -6,7 +6,7 @@ const {CenturionCRT, A_REVERSE} = require('../build/out/emulator/server/src/term
 
 const CONNECT_PROMPT = 'Column (1-7), or Q to quit: ';
 const CHESS_MENU = '(W/B/2/Q): ';
-const CHESS_PROMPT = 'Move (e2e4, HELP, NEW, RESIGN, Q): ';
+const CHESS_PROMPT = '\x1b[K> ';
 const CHESS_OPENING = [
     'rnbqkbnr', 'pppppppp', '        ', '        ',
     '        ', '        ', 'PPPPPPPP', 'RNBQKBNR',
@@ -85,6 +85,9 @@ async function checkGames(image) {
         await enter('HELP', CHESS_PROMPT);
         assert.match(rowText(24), /^e2e4 \| Castling/);
         await enter('e2e5', CHESS_PROMPT);
+        assert.match(rowText(24), /^Illegal move/);
+        chessBoard(chess);
+        await enter('x'.repeat(75), CHESS_PROMPT);
         assert.match(rowText(24), /^Illegal move/);
         chessBoard(chess);
 

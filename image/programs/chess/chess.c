@@ -75,9 +75,10 @@ static void draw_board(void)
     position(20,1);printf("   +---+---+---+---+---+---+---+---+");
     position(21,6);for(file=0;file<8;file++)printf("%c   ",flipped?'h'-file:'a'+file);
     for(rank=0;rank<6;rank++){position(5+2*rank,44);printf("%s",legend[rank]);}
-    position(18,44);printf("HELP  Commands");
-    position(19,44);printf("NEW   New game");
-    position(20,44);printf("Q     Exit");
+    position(18,44);printf("Move format: e2e4");
+    position(19,44);printf("HELP  Commands");
+    position(20,44);printf("NEW   New game   RESIGN");
+    position(21,44);printf("Q     Exit");
 }
 
 static void update_board(void)
@@ -137,7 +138,8 @@ int main(void)
                 continue;
             }
             do {
-                if(ask(23,"Move (e2e4, HELP, NEW, RESIGN, Q): ")<0)return 1;
+                /* Leave room for the complete 75-character CENTOS input. */
+                if(ask(23,"> ")<0)return 1;
                 if(command("Q")){message(24,"End of Chess.");putchar(10);return 0;}
                 if(command("NEW"))break;
                 if(command("RESIGN")){message(22,chess_side()?"Black resigns. White wins.":"White resigns. Black wins.");break;}
