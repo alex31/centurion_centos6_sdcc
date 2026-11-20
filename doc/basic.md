@@ -1,9 +1,9 @@
 # BASIC for CENTOS
 
-This C application adapts Stefan's BASIC to the Centurion CPU6 and CENTOS.
-Its performance goal is to be competitive with BASIC on 1980s 8-bit
-microcomputers. The distribution includes two BASIC examples and a C
-version of the one-dimensional Life example for comparison.
+This example combines C and CPU6 assembly in a CENTOS application based
+on Stefan's BASIC. Its performance goal is to be competitive with BASIC
+on 1980s 8-bit microcomputers. The distribution includes two BASIC examples
+and a C version of the one-dimensional Life example for comparison.
 
 ## Start the REPL
 

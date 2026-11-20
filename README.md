@@ -4,9 +4,15 @@ A source distribution of the SDCC cross-compiler for the Centurion CPU6,
 the EE200 assembler and linker, and a microcoded JavaScript emulator.
 The build is intended for Linux and WSL2.
 
-My contribution is modest. I used a large language model (LLM) to help me
-understand, use and adapt existing projects and assemble this distribution.
-The original work belongs to the projects and authors credited below.
+I discovered the Centurion through Usagi Electric's videos. I was fascinated
+by his restoration series, and it made me want to port a C compiler to the
+machine. [Usagi Electric's Centurion series overview](https://www.youtube.com/watch?v=KVQ_oGQ6OFI)
+
+I've been programming in C for 40 years and had never found the time to take
+on a compiler port. The arrival of large language models made the project
+possible for me. I used an LLM to help me understand and adapt existing
+open-source projects and put this distribution together. My contribution is
+modest. The original projects and their authors are credited below.
 
 ## Build
 
@@ -89,9 +95,10 @@ produces a raw `.bin` linked at a specified load address, `0x2000` by default.
 
 ## BASIC example
 
-This C application adapts Stefan's BASIC for CENTOS. Its performance goal is
-to compete with BASIC on 1980s 8-bit microcomputers, using published timings
-as references for benchmarks on the emulated CPU6.
+Once the toolchain was in place, I adapted Stefan's BASIC as an example of
+how to combine C and CPU6 assembly in a CENTOS application. The performance
+goal is to compete with BASIC on 1980s 8-bit microcomputers, using published
+timings as references for benchmarks on the emulated CPU6.
 
 Stored programs compile to typed bytecode. The REPL includes an editor,
 and `DEFINT` selects 16-bit integer variables. BASIC also supports
