@@ -106,6 +106,8 @@ with `FOR/NEXT` and `WHILE/WEND`. [BASIC guide and benchmark commands](doc/basic
 - The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with
   the same fixed seed and 27 output rows. From the first row to the last,
   the C program took **1.98 s** and integer BASIC took **7.86 s**.
+  Usagi Electric's original program took **12 min 38 s** for its first
+  26 generations under CENTOS BASIC 6.03.
   [C Life1D](doc/sdcc.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/basic.md#performance)
 
 These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.

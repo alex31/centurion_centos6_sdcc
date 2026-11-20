@@ -60,17 +60,35 @@ run/centurion-system build/out/basic/centos-basic.img
 ### One-dimensional Life
 
 `LIFE1D` applies Jon Millen's B23/S24 rule to 69 cells. Usagi Electric's
-CENTOS example uses the same rule and width. The versions here use a
-deterministic seed to reproduce the same initial row and 26 updates in
-BASIC and C. Their shared workload gives a direct comparison, while the
-published CENTOS example uses its own random start and cursor output.
-[Rule reference](https://jonmillen.com/1dlife/index.html) · [Usagi Electric's demonstration](https://www.youtube.com/watch?v=bpdYBsgYF_c)
+published `1DLIFE_CEN.BAS` uses the same rule and width. It starts with
+`RND(1)`, updates the display with individual `CURSOR` and `PRINT`
+commands, and starts a fresh series after every 26 generations.
+[Rule reference](https://jonmillen.com/1dlife/index.html) · [Published source](https://github.com/Nakazoto/CenturionComputer/blob/8682b5865979315cf9e085e75ff8547ff3be473e/Software/New%20Software/1DLIFE_CEN.BAS) · [Video demonstration](https://www.youtube.com/watch?v=bpdYBsgYF_c&t=775s)
 
-At the CPU6's nominal 5 MHz, the bytecode BASIC program took **7.86 s**
-from the end of the first row to the end of the last, compared with
-**1.98 s** for C compiled by SDCC. Both figures are medians of three
-emulator runs with seed 1. An independent model checked all 27 rows.
-The BASIC program builds each row in `L$` and prints it in one statement.
+The historical benchmark imported that source unchanged as the type A
+file `ZUELIFE` on a copy of a CENTOS 13 disk. The job `P.BASIC UELIFE 1 CRT0`
+compiled it with BCOM 6.03, with an empty library response.
+`.LOAD BASIC` loaded the CENTOS monitor and `.RUN XUELIFE` started the
+program. The emulator counted microsteps from the end of the initial
+frame to the end of the 26th update, including terminal rendering.
+An independent model checked the interior cells of each update.
+
+All three timings cover the end of the initial row to the end of the 26th
+update, at the CPU6's nominal 5 MHz rate.
+
+| Program | CPU6 microsteps | Time at 5 MHz |
+| --- | ---: | ---: |
+| Usagi Electric's original on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
+| Distributed integer bytecode BASIC | 39,297,964 | 7.86 s |
+| Distributed C compiled by SDCC | 9,893,516 | 1.98 s |
+
+The historical row reports one full emulator run, with generation times
+between 28.79 and 29.45 s. The distributed C and BASIC programs use the
+same initial state and render identical rows. Their timings are medians
+of three runs with seed 1, with all 27 rows verified against an independent
+model. The original source uses its own random initial state and cursor
+commands, so the table compares complete implementations with rendering.
+The distributed BASIC program builds each row in `L$` and prints it in one statement.
 The C implementation evolves packed bitsets using lookup tables.
 [C implementation and measurements](sdcc.md#one-dimensional-life) · [BASIC source](../image/programs/life1d/life1d.bas)
 
