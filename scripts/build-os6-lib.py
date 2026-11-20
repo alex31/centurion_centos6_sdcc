@@ -15,7 +15,8 @@ a=p.parse_args();destination=a.destination.resolve();destination.mkdir(parents=T
 if a.printf_sdcc_only and a.compiler!='sdcc':p.error('--printf-sdcc-only needs SDCC')
 sources=[('crt0.s','crt0'),('console.s','putchar'),('console.c','puts'),('printf.c','printf'),
  ('console-write.s','console-write'),('file.c','file'),('file.s','fileasm'),
- ('input.c','input'),('input.s','inputasm'),('checkpoint.s','checkpoint'),('exf.c','exf'),('exf.s','exfasm')]
+ ('input.c','input'),('input.s','inputasm'),('checkpoint.s','checkpoint'),('exf.c','exf'),('exf.s','exfasm'),
+ ('jcl.c','jcl'),('jcl-console.s','jcl-console')]
 headers=[*(root/'os6/include').glob('*.h'),*(root/'baremetal/include').glob('*.h')]
 for family in (['fcc','sdcc'] if a.compiler=='both' else [a.compiler]):
  compiler=tools/('sdcc-cpu6/bin/sdcc' if family=='sdcc' else 'bin/fcc')
