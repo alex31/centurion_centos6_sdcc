@@ -5,7 +5,7 @@ TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games bench-basic
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games tests-finch bench-basic
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -36,6 +36,11 @@ tests-web: emulator
 
 tests-games: emulator
 	node "$(TESTS)/games-vt100.js" "$(APP_IMAGE)"
+
+tests-finch: sdk
+	@mkdir -p "$(TEST_OUT)" && work=$$(mktemp -d "$(TEST_OUT)/finch.XXXXXX") && \
+		"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/finch.c" -o "$$work/finch.bin" && \
+		node "$(TESTS)/finch.js" "$$work/finch.bin"
 
 bench-basic: emulator
 	node "$(TESTS)/basic-benchmark.js" "$(APP_IMAGE)" "" "$(BASIC_BENCHMARKS)"

@@ -115,7 +115,8 @@ def main():
                 libraries = ([overlay] if overlay.is_file() else []) + ([formatter] if formatter.is_file() else []) + [os6lib / 'libos6.a']
             else:
                 sources = [ROOT / 'baremetal/crt0.s', ROOT / 'baremetal/console.c', *sources]
-                objects, libraries = [], []
+                baremetal = TOOLS / 'lib/cpu6/libbaremetal-sdcc.a'
+                objects, libraries = [], [baremetal] if baremetal.is_file() else []
             assemblies = []
             link_inputs = []
             for index, source in enumerate(sources):

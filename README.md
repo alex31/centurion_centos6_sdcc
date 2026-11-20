@@ -58,8 +58,12 @@ corresponding CENTOS drivers.
 
 Bare-metal programs can include [system_mmio.h](baremetal/include/system_mmio.h)
 for the documented CPU6 device addresses and
-[system_finch.h](baremetal/include/system_finch.h) for volatile access to the
-Finch/Floppy Controller registers.
+[system_finch.h](baremetal/include/system_finch.h) for the Finch/Floppy
+Controller registers and the bare-metal Finch driver. After `finch_init`,
+the driver reads and writes 400-byte sectors and formats tracks of 29 sectors.
+`finch_format_disk` formats all cylinders using the selected head count and the
+same track data on every track. Run `make tests-finch` to verify the driver on
+the JavaScript simulator with a scratch disk in memory.
 
 ## Install and run under CENTOS
 

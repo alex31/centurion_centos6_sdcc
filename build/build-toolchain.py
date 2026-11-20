@@ -68,7 +68,7 @@ def build_sdcc(jobs, run, cc):
 
 def build_runtime(run):
     for script in ("build-int48.py", "build-os6-lib.py", "build-float32.py",
-                   "build-compiler-runtime.py"):
+                   "build-compiler-runtime.py", "build-baremetal-lib.py"):
         run([sys.executable, ROOT / "scripts" / script], ROOT)
 
 

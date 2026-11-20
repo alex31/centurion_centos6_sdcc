@@ -31,4 +31,38 @@ typedef struct {
 /* The low four bits of the drive-ready reply correspond to units 0 through 3. */
 #define FFC_DRIVE_READY_MASK 0x0Fu
 
+#define FINCH_SECTOR_SIZE 400u
+#define FINCH_SECTORS_PER_TRACK 29u
+#define FINCH_CYLINDERS 605u
+#define FINCH_TRACK_SIZE (FINCH_SECTOR_SIZE * FINCH_SECTORS_PER_TRACK)
+
+enum {
+    FINCH_OK = 0,
+    FINCH_INVALID_ARGUMENT = -1,
+    FINCH_TIMEOUT = -2,
+    FINCH_INCOMPLETE_DMA = -3
+};
+
+/* Bare-metal driver for the standard 400-byte Finch sector format. Unit is
+   1 through 3. Cylinder, head and sector are zero-based. Positive returns
+   are the controller's status bytes. Calls require exclusive use of the
+   controller and CPU DMA, with buffers in identity-mapped system RAM. */
+
+/* Reset the controller and seek the selected drive to cylinder zero.
+   Call before the first transfer and after a timeout. */
+int finch_init(uint8_t unit);
+int finch_read_sector(uint8_t unit, uint16_t cylinder, uint8_t head,
+                      uint8_t sector, void *data);
+int finch_write_sector(uint8_t unit, uint16_t cylinder, uint8_t head,
+                       uint8_t sector, const void *data);
+
+/* Overwrite one physical track with FINCH_TRACK_SIZE bytes of data in
+   sector order. Filesystem initialization is a separate operation. */
+int finch_format_track(uint8_t unit, uint16_t cylinder, uint8_t head,
+                       const void *data);
+
+/* Format every cylinder using the installed drive's head count and the
+   same FINCH_TRACK_SIZE-byte image on each track. Stops on the first error. */
+int finch_format_disk(uint8_t unit, uint8_t heads, const void *track_data);
+
 #endif
