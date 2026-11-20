@@ -190,6 +190,28 @@ async function main() {
     await waitFor(() => state.terminals[0]?.bootReady, 'the first ROM prompt');
     assert.match(screen(state.terminals[0]), /D=/);
 
+    // BASIC .EDIT requests VT100 application cursor keys.
+    const crt0 = global.window.io_mux.muxports[0];
+    const receive = crt0.receive;
+    const received = [];
+    crt0.receive = byte => received.push(byte);
+    try {
+        for (const [mode, key, expected] of [
+            ['', '\x1b[D', [21]],
+            ['\x1b[?1h', '\x1b[D', [27, 79, 68]],
+            ['', '\x1b[C', [27, 79, 67]],
+            ['\x1b[?1l', '\x1b[C', [6]],
+        ]) {
+            for (const ch of mode) crt0.write_data(ch.charCodeAt(0));
+            received.length = 0;
+            ws.send(JSON.stringify({type: 'key', port: 0, key}));
+            await waitFor(() => received.length >= expected.length, 'the cursor key bytes', 2);
+            assert.deepEqual(received, expected);
+        }
+    } finally {
+        crt0.receive = receive;
+    }
+
     assert.equal(state.canSave, false);
     ws.send(JSON.stringify({type: 'boot', port: 0, date: '111926', time: '140000'}));
     await waitFor(() => messageError, 'a missing image diagnostic');
