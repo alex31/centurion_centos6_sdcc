@@ -190,7 +190,7 @@ async function main() {
     await waitFor(() => state.terminals[0]?.bootReady, 'the first ROM prompt');
     assert.match(screen(state.terminals[0]), /D=/);
 
-    // BASIC .EDIT requests VT100 application cursor keys.
+    // BASIC .EDIT and .LIST request VT100 application cursor keys.
     const crt0 = global.window.io_mux.muxports[0];
     const receive = crt0.receive;
     const received = [];
@@ -200,6 +200,10 @@ async function main() {
             ['', '\x1b[D', [21]],
             ['\x1b[?1h', '\x1b[D', [27, 79, 68]],
             ['', '\x1b[C', [27, 79, 67]],
+            ['', '\x1b[A', [27, 79, 65]],
+            ['', '\x1b[B', [27, 79, 66]],
+            ['', '\x1b[5~', [27, 91, 53, 126]],
+            ['', '\x1b[6~', [27, 91, 54, 126]],
             ['\x1b[?1l', '\x1b[C', [6]],
         ]) {
             for (const ch of mode) crt0.write_data(ch.charCodeAt(0));
