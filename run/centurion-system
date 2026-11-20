@@ -6,7 +6,8 @@ case "${1-}" in
     -h|--help)
         printf '%s\n' 'Usage: centurion-system [disk-image]' \
             'Web console at http://127.0.0.1:42646/' \
-            'Telnet CRT0 is available at 127.0.0.1:2324.'
+            'Telnet CRT0 is available at 127.0.0.1:2324.' \
+            'Set CENTURION_JCL_LOOPBACK=1 to connect CRT2 to CRT1 for JCL.'
         exit 0
         ;;
 esac

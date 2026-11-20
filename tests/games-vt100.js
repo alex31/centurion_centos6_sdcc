@@ -60,7 +60,7 @@ async function checkGames(image) {
 
     try {
         await session.boot();
-        await enter('.RUN XCONNECT4', CONNECT_PROMPT);
+        await enter('.RUN SDCC.XCONNECT4', CONNECT_PROMPT);
         assert.match(rowText(1), /^CONNECT FOUR/);
         await enter('0', CONNECT_PROMPT);
         assert.match(rowText(14), /^Enter a digit from 1 to 7/);
@@ -78,7 +78,7 @@ async function checkGames(image) {
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Connect Four handles input and displays both moves on the VT100 board.');
 
-        await enter('.RUN XCHESS', CHESS_MENU);
+        await enter('.RUN SDCC.XCHESS', CHESS_MENU);
         await enter('2', CHESS_PROMPT);
         const chess = CHESS_OPENING.map(rank => [...rank]);
         chessBoard(chess);
@@ -106,7 +106,7 @@ async function checkGames(image) {
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Chess displays legal play, en passant and castling on the VT100 board.');
 
-        await enter('.RUN XCHESS', CHESS_MENU);
+        await enter('.RUN SDCC.XCHESS', CHESS_MENU);
         await enter('B', CHESS_PROMPT);
         const opening = /^Computer plays ([a-h][12])([a-h][34])/.exec(rowText(24));
         assert.ok(opening, rowText(24));

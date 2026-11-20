@@ -16,7 +16,7 @@ async function checkImage() {
     try {
         await session.boot();
         const position = session.output.length;
-        await session.send('.RUN XSIEVE\r');
+        await session.send('.RUN SDCC.XSIEVE\r');
         await session.waitFor('C_SIEVE;', position, 120000);
         const output = session.output.slice(position);
         const count = /^Count:\s*(\d+)/m.exec(output);

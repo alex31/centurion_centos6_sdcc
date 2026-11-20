@@ -6,19 +6,25 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {setTimeout: delay} = require('node:timers/promises');
 const {OS6Session} = require('../scripts/os6-session');
+const {connectJclLoopback} = require('../build/out/emulator/server/src/terminal/jcl-loopback');
 
 const root = path.join(__dirname, '..');
-const seed = path.resolve(process.argv[2] || path.join(root, 'build/out/image/CENTOS_13.IMG'));
+const installed = process.argv[2] === '--installed';
+assert.ok(!installed || process.argv[3], 'Usage: system-jcl.js --installed IMAGE');
 const out = path.join(root, 'build/out/tests');
 fs.mkdirSync(out, {recursive: true});
 const work = fs.mkdtempSync(path.join(out, 'jcl-'));
-const executable = path.join(work, 'client.exf');
-const image = path.join(work, 'client.img');
-execFileSync(path.join(root, 'run/cpu6-os6-sdcc'),
-    ['-O1', '--gc-sections', path.join(__dirname, 'system-jcl.c'), '-o', executable], {stdio: 'inherit'});
-execFileSync('python3', [path.join(root, 'scripts/install-os6-bundle.py'), seed,
-    'XJCLTEST=' + executable, '--library', 'JCLSDK', '--data-file', 'JCLSDK.REQ:48:A',
-    '--data-file', 'JCLSDK.LOG:128:A', '--data-file', 'JCLSDK.TAG0:1:A', '-o', image], {stdio: 'inherit'});
+const image = installed ? path.resolve(process.argv[3]) : path.join(work, 'client.img');
+const program = installed ? 'SDCC.XJCLTEST' : 'XJCLTEST';
+if (!installed) {
+    const seed = path.resolve(process.argv[2] || path.join(root, 'build/out/image/CENTOS_13.IMG'));
+    const executable = path.join(work, 'client.exf');
+    execFileSync(path.join(root, 'run/cpu6-os6-sdcc'),
+        ['-O1', '--gc-sections', path.join(__dirname, 'system-jcl.c'), '-o', executable], {stdio: 'inherit'});
+    execFileSync('python3', [path.join(root, 'scripts/install-os6-bundle.py'), seed,
+        'XJCLTEST=' + executable, '--library', 'JCLSDK', '--data-file', 'JCLSDK.REQ:48:A',
+        '--data-file', 'JCLSDK.LOG:128:A', '--data-file', 'JCLSDK.TAG0:1:A', '-o', image], {stdio: 'inherit'});
+}
 
 async function waitUntil(condition, description) {
     const deadline = Date.now() + 30000;
@@ -33,33 +39,22 @@ async function main() {
     const ports = global.window.io_mux.muxports;
     const receive = ports[1];
     const transmit = ports[2];
-    const queue = [];
     let workerOutput = '';
     let mainStart = 0;
-    let connected = false;
     const write = receive.write_data.bind(receive);
     receive.write_data = byte => {
         workerOutput += String.fromCharCode(byte & 127);
         return write(byte);
     };
-    // Emulate a one-way serial lead. The guest SDK uses native CENTOS I/O.
-    // Pace the feed so the MUX receive register is drained in each slice.
-    transmit.bind_dev({emu_linked: true, rts: true, can_receive: () => true,
-        receive: byte => { if (connected) queue.push(byte & 127); },
-        set_cts() {}, check_send() {},
-        get_dev: () => transmit, bind_dev() {}});
-    const wire = setInterval(() => {
-        if (queue.length && receive.rts && !receive.read_busy) receive.receive(queue.shift());
-    }, 90);
+    const wire = connectJclLoopback(transmit, receive);
     try {
         await session.boot();
         await session.send('.START P1 WITH CRT1\r');
         await waitUntil(() => workerOutput.includes('\r\n'), 'the independent JCL console');
         await session.send('.USE CRT2 FOR SYS001\r');
         await delay(200);
-        connected = true;
         mainStart = session.output.length;
-        await session.send('.RUN XJCLTEST\r');
+        await session.send('.RUN ' + program + '\r');
         await waitUntil(() => workerOutput.includes('JCL TEST WAITING'), 'the paused job');
         await delay(300);
         assert.doesNotMatch(session.output.slice(mainStart), /PASS full|FAIL |ABORT\s+\d/);
@@ -73,7 +68,7 @@ async function main() {
     } finally {
         fs.writeFileSync(path.join(work, 'crt0.log'), session.output);
         fs.writeFileSync(path.join(work, 'crt1.log'), workerOutput);
-        clearInterval(wire);
+        wire.close();
         session.stop();
     }
 }

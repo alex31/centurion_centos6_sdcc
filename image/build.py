@@ -53,6 +53,7 @@ def build_programs(work):
             kermit / 'os6-serial.s', kermit / 'kermit.c',
         ],
         'XLIFE1D': [life / name for name in ('life1d.c', 'evolve.c', 'writeln.s', 'clock.s')],
+        'XJCLTEST': [ROOT / 'tests/system-jcl.c'],
     }
     files = []
     for name, sources in programs.items():
@@ -60,7 +61,7 @@ def build_programs(work):
         subprocess.run([SDK, '-O1', '--lto', '--gc-sections', *sources,
                         '--map', executable.with_suffix('.map'), '-o', executable],
                        check=True, cwd=ROOT)
-        files.append(f'{name}={executable}')
+        files.append(f'SDCC.{name}={executable}')
     return files
 
 
@@ -76,9 +77,10 @@ def build_tests(work):
             name = f'T{index:02d}O{opt}'
             executable = directory / (name + '.exf')
             subprocess.run([SDK, f'-O{opt}', *sources, '-o', executable], check=True, cwd=ROOT)
-            files.append(f'{name}={executable}')
-            names.append(name)
-            mapping.append(f'- {name} · {case} -O{opt}')
+            qualified_name = f'SDCC.{name}'
+            files.append(f'{qualified_name}={executable}')
+            names.append(qualified_name)
+            mapping.append(f'- {qualified_name} · {case} -O{opt}')
     (work / 'tests.md').write_text('\n'.join(mapping) + '\n')
     job = directory / 'RUNTESTS.txt'
     commands = '\n'.join('.RUN ' + name for name in names)
@@ -112,15 +114,20 @@ def main():
     run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'size',
         '--no-auto-inline', '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
-    games = work / 'programs.img'
+    programs_image = work / 'programs.img'
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
-        '--job', f'RUNTESTS={job}', '-o', games)
+        '--library', 'SDCC', '--job', f'RUNTESTS={job}', '-o', programs_image)
+    spool_image = work / 'programs-jcl.img'
+    run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', programs_image, '--library', 'JCLSDK',
+        '--data-file', 'JCLSDK.REQ:48:A', '--data-file', 'JCLSDK.LOG:128:A',
+        '--data-file', 'JCLSDK.TAG0:1:A', '-o', spool_image)
     final_image = work / 'centos-apps.img'
-    run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', games,
+    run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', spool_image,
         '--example', f'LIFE1D={ROOT / "image/programs/life1d/life1d.bas"}', '--check-games', '-o', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
     run('node', ROOT / 'tests/games-vt100.js', final_image)
+    run('node', ROOT / 'tests/system-jcl.js', '--installed', final_image)
     with tempfile.TemporaryDirectory(prefix='.image-', dir=output.parent) as directory:
         pending = Path(directory) / output.name
         if output == DEFAULT_OUTPUT:

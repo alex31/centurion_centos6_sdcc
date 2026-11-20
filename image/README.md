@@ -39,11 +39,12 @@ automatically when called without an image argument. At `D=`, click
 | CENTOS command | Program |
 | --- | --- |
 | `BASIC` | Start Stefan BASIC. Use `.LOAD "LIFE1D"`, then `.RUN`, for the integer Life example |
-| `.RUN XSIEVE` | SDCC-compiled prime sieve |
-| `.RUN XCONNECT4` | Connect Four |
-| `.RUN XCHESS` | Chess |
-| `.RUN XLIFE1D` | One-dimensional Life in C |
-| `.RUN XKERMIT` | E-Kermit receiver for CRT1 |
+| `.RUN SDCC.XSIEVE` | SDCC-compiled prime sieve |
+| `.RUN SDCC.XCONNECT4` | Connect Four |
+| `.RUN SDCC.XCHESS` | Chess |
+| `.RUN SDCC.XLIFE1D` | One-dimensional Life in C |
+| `.RUN SDCC.XKERMIT` | E-Kermit receiver for CRT1 |
+| `.RUN SDCC.XJCLTEST` | Native C example for `system_jcl()`. See [the JCL console setup](../doc/jcl.md#run-the-example-from-the-application-image) |
 | `RUNTESTS` | Run the 44 CENTOS executables from the main CPU6 compiler regression suite |
 
 The `SBASIC` library on disk 1 holds the BASIC job, its executable, modules
@@ -55,8 +56,9 @@ prompt to browse the library. BASIC reads and saves source files there.
 In BASIC, `.LOAD "BDEMO"` followed by `.RUN` demonstrates real arithmetic,
 mixed numeric and string data, and nested `WHILE` and `FOR` loops.
 
-The application image contains the CENTOS builds of the regression tests
-named `T01O0` through `T22O1`. Each run records the mapping from file names
+Use `.DIR SDCC. 1` to browse the SDCC library. It contains the application
+executables and the CENTOS regression tests `T01O0` through `T22O1`.
+Each build records the mapping from qualified names
 to C cases in `tests.md`. The device-independent tools under `tests/` run
 the raw CPU6 binaries separately on the C and JavaScript cores.
 

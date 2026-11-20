@@ -18,7 +18,7 @@ parser.add_argument('--job',action='append',default=[],help='NAME=encoded-text-f
 parser.add_argument('--data-file',action='append',default=[],help='NAME:sectors[:A|B], preallocate a data file (B by default)')
 parser.add_argument('--library',help='create a native library for qualified LIB.NAME files')
 args=parser.parse_args()
-if not args.files and not args.job:parser.error("at least one executable or job is required")
+if not (args.files or args.job or args.data_file):parser.error('at least one file is required')
 if args.library and not re.fullmatch('[A-Z][A-Z0-9]{0,9}',args.library):parser.error('invalid library name')
 seed=args.image.resolve(strict=True);output=args.o.resolve()
 if output.exists() or output==seed:parser.error('output must be a new distinct image')

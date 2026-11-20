@@ -29,8 +29,9 @@ and capture. The job's diagnostics and native messages are part of the log.
 
 ## Native setup
 
-Reserve the `JCLSDK` library on disk 1 for this service. Run these commands
-once to provision its input and output files.
+The application image already contains the spool library and the test
+executable. On a separate CENTOS image, reserve the `JCLSDK` library on disk 1
+and run these commands once to provision its input and output files.
 
 ```text
 .NEW JCLSDK ON 1 'L' 256S
@@ -64,13 +65,36 @@ operator prompt in the job is handled at the job console. A timeout reports
 failure to complete capture and the job console retains its native state.
 The wait also has a polling limit for systems with a stopped CENTOS clock.
 
-The native test uses a temporary boot disk and emulates the one-way lead.
-It covers a paused multi-sector job, `.DIR` output, truncation and a zero-size
-buffer.
+## Run the example from the application image
+
+Start the emulator with its virtual serial lead from `CRT2` to `CRT1`.
+
+```sh
+CENTURION_JCL_LOOPBACK=1 run/centurion-system
+```
+
+After booting CENTOS, enter these lines at the `CRT0` console.
+
+```text
+.START P1 WITH CRT1
+.USE CRT2 FOR SYS001
+.RUN SDCC.XJCLTEST
+```
+
+When `CRT1` shows `JCL TEST WAITING`, press Enter on `CRT1`. The C program
+prints the complete, truncated and zero-capacity test results on `CRT0`.
+
+## Automated test
+
+The standalone test creates a temporary boot disk. Use `--installed` to
+exercise the copy of `XJCLTEST` already in the application image. Both modes
+emulate the one-way lead and cover a paused multi-sector job, `.DIR` output,
+truncation and a zero-size buffer.
 
 ```sh
 make sdk
 node tests/system-jcl.js /path/to/CENTOS_13.IMG
+node tests/system-jcl.js --installed build/out/image/centos-apps.img
 ```
 
 The native commands and logical units are described in the
