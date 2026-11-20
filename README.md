@@ -11,8 +11,8 @@ machine. [Usagi Electric's Centurion series overview](https://www.youtube.com/wa
 I've been programming in C for 40 years and had never found the time to take
 on a compiler port. The arrival of large language models made the project
 possible for me. I used an LLM to help me understand and adapt existing
-open-source projects and put this distribution together. My contribution is
-modest. The original projects and their authors are credited below.
+open-source projects and put this distribution together. The original
+projects and their authors are credited below.
 
 ## Build
 
