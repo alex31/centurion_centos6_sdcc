@@ -94,8 +94,8 @@ with and without the packed-table optimization. The cost fell from
 280,846 to 125,520 microsteps. In the corresponding console run, the
 first-to-last-row interval fell from 10.41 to 9.89 million microsteps.
 The row output accounts for much of the elapsed time.
-The BASIC guide also measures the original program shown by Usagi Electric
-on the CENTOS BASIC 6.03 runtime. [Historical Life1D comparison](basic.md#one-dimensional-life)
+The BASIC guide also reports a timing for Life1D under CENTOS BASIC 6.03
+using the listing linked in Usagi Electric's demonstration. [Historical Life1D comparison](basic.md#one-dimensional-life)
 
 ## Verification and sources
 

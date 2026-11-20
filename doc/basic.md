@@ -59,10 +59,10 @@ run/centurion-system build/out/basic/centos-basic.img
 
 ### One-dimensional Life
 
-`LIFE1D` applies Jon Millen's B23/S24 rule to 69 cells. Usagi Electric's
-published `1DLIFE_CEN.BAS` uses the same rule and width. It starts with
-`RND(1)`, updates the display with individual `CURSOR` and `PRINT`
-commands, and starts a fresh series after every 26 generations.
+`LIFE1D` applies Jon Millen's B23/S24 rule to 69 cells. The `1DLIFE_CEN.BAS`
+listing linked in Usagi Electric's demonstration uses the same rule and width.
+It starts with `RND(1)`, updates the display with individual `CURSOR` and
+`PRINT` commands, and starts a fresh series after every 26 generations.
 [Rule reference](https://jonmillen.com/1dlife/index.html) · [Published source](https://github.com/Nakazoto/CenturionComputer/blob/8682b5865979315cf9e085e75ff8547ff3be473e/Software/New%20Software/1DLIFE_CEN.BAS) · [Video demonstration](https://www.youtube.com/watch?v=bpdYBsgYF_c&t=775s)
 
 The historical benchmark imported that source unchanged as the type A
@@ -78,7 +78,7 @@ update, at the CPU6's nominal 5 MHz rate.
 
 | Program | CPU6 microsteps | Time at 5 MHz |
 | --- | ---: | ---: |
-| Usagi Electric's original on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
+| `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
 | Distributed integer bytecode BASIC | 39,297,964 | 7.86 s |
 | Distributed C compiled by SDCC | 9,893,516 | 1.98 s |
 
