@@ -44,7 +44,6 @@ automatically when called without an image argument. At `D=`, click
 | `.RUN SDCC.XCHESS` | Chess |
 | `.RUN SDCC.XLIFE1D` | One-dimensional Life in C |
 | `.RUN SDCC.XKERMIT` | E-Kermit receiver for CRT1 |
-| `.RUN SDCC.XJCLTEST` | Native C example for `system_jcl()`. See [the JCL console setup](../doc/jcl.md#run-the-example-from-the-application-image) |
 | `RUNTESTS` | Run the 44 CENTOS executables from the main CPU6 compiler regression suite |
 
 The `SBASIC` library on disk 1 holds the BASIC job, its executable, modules
