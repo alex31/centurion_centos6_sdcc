@@ -56,6 +56,11 @@ objects and archives, `--float32`, and `--native-int48`. See
 [MMU placement](doc/mmu.md) and [C overlays](doc/overlays.md) for the
 corresponding CENTOS drivers.
 
+Bare-metal programs can include [system_mmio.h](baremetal/include/system_mmio.h)
+for the documented CPU6 device addresses and
+[system_finch.h](baremetal/include/system_finch.h) for volatile access to the
+Finch/Floppy Controller registers.
+
 ## Install and run under CENTOS
 
 Provide a 512-byte-stride CENTOS Hawk image. Use the installer to add the

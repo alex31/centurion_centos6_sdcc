@@ -1,11 +1,11 @@
+#include <system_mmio.h>
+
 /* Polled output on Centurion MUX channel 0. */
 int putchar(int c)
 {
-    volatile unsigned char *status = (volatile unsigned char *)0xf200;
-    volatile unsigned char *data = (volatile unsigned char *)0xf201;
-    while ((*status & 2) == 0)
+    while (!(CENTURION_MMIO8(CENTURION_MUX_STATUS_ADDR(0, 0)) & CENTURION_MUX_STATUS_TX_EMPTY))
         ;
-    *data = (unsigned char)c;
+    CENTURION_MMIO8(CENTURION_MUX_DATA_ADDR(0, 0)) = (uint8_t)c;
     return c;
 }
 
