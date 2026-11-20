@@ -1,14 +1,24 @@
-# Centurion SDCC
+# Centurion CPU6 SDCC
 
-Source distribution of the SDCC cross-compiler for Centurion CPU6, the EE200
-assembler and linker, and the microcoded JavaScript emulator. The build runs
-on Linux and targets the Linux environment under WSL2.
+A source distribution of the SDCC cross-compiler for the Centurion CPU6,
+the EE200 assembler and linker, and a microcoded JavaScript emulator.
+The build is intended for Linux and WSL2.
+
+My contribution is modest. I used a large language model (LLM) to help me
+understand, use and adapt existing projects and assemble this distribution.
+The original work belongs to the projects and authors credited below.
 
 ## Build
 
-Install Git, GNU Make, a C/C++ toolchain with binutils, Flex, Bison or Berkeley
-Yacc, Boost headers, zlib headers, Python 3.9 or newer, and Node.js 20 or newer
-with npm. For Debian or Ubuntu, install the native build dependencies with:
+Clone the distribution and its pinned source dependencies.
+
+```sh
+git clone --recurse-submodules https://github.com/alex31/centurion_centos6_sdcc.git
+cd centurion_centos6_sdcc
+```
+
+On Debian or Ubuntu, install the build dependencies and use Node.js 20 or
+newer with npm. In WSL2, keep the checkout in the Linux filesystem.
 
 ```sh
 sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3
@@ -16,122 +26,105 @@ node --version
 npm --version
 ```
 
-Run the build from a checkout in the Linux filesystem under WSL2.
+Supply a local CenRE firmware-bearing `cen.ts` and a 512-byte-stride
+`CENTOS_13.IMG` Hawk image. See the Centurion archive's instructions for
+obtaining a system image. [Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+
+Import the firmware tables, then build the compilers, emulator, applications
+and bootable CENTOS image.
 
 ```sh
-make -j2 JOBS=4
 python3 scripts/import-cenre-firmware.py /path/to/local/cen.ts
-make check
+./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
 ```
 
-The emulator reads a firmware pack supplied locally. The import command
-extracts the tables from a local firmware-bearing CenRE source file. It
-writes `build/out/emulator/firmware.json` by default. To store the pack
-outside the build directory, give the import command `--output` and set
-`CENTURION_FIRMWARE` to that file before running the emulator or tests.
+The generated image is `build/out/image/centos-apps.img`. The firmware
+import writes `build/out/emulator/firmware.json` by default. To use another
+location, pass `--output` to the import script and set
+`CENTURION_FIRMWARE` when running the emulator or its tests.
 
-The Makefile initializes required submodules at the pinned commits even after
-a plain clone. Use `make submodules` to fetch the build and test components,
-including BASIC and the C instruction emulator. `make toolchain` and `make emulator` build the two
-components independently. All generated files go under `build/out/`. Use
-`make clean` to remove them.
+Use `make sdk` to build the compiler tools and emulator alone. The build
+also initializes the required submodules after a plain clone. Run
+`make check` for a quick check after importing the firmware, `make tests`
+for regressions on both emulators or `make alltests` for the extended
+suite. [Test guide](tests/README.md)
 
-`make check` compiles and runs a CPU6 arithmetic program in the JavaScript
-core and builds a CENTOS executable. It runs without a disk image or network
-listeners. Use `make tests` for the CPU6 regression on both emulators and
-`make alltests` for the extended suite. See the [test guide](tests/README.md).
-
-## Compile for CPU6
+## Start a CENTOS session
 
 ```sh
-run/sdcc --version
-run/cpu6-bare-sdcc -O1 tests/smoke.c -o build/out/smoke.bin
-run/cpu6-os6-sdcc -Os --lto --gc-sections examples/hello_os6.c -o build/out/hello.exf
+run/centurion-system
 ```
 
-`run/sdcc` runs the underlying SDCC frontend with `-mcpu6`.
-Use the two drivers to assemble and link a bare-metal program or a relocatable
-CENTOS executable. Both support separate compilation with `-c`, linked
-objects and archives, `--float32`, and `--native-int48`. See
-[MMU placement](doc/mmu.md) and [C overlays](doc/overlays.md) for the
-corresponding CENTOS drivers.
+Open the [web console](http://127.0.0.1:42646/) and click **Boot CENTOS** on
+CRT0. The launcher mounts the generated application image by default. Once
+`CRT0 READY` appears, try the prime sieve or open BASIC.
 
-Bare-metal programs can include [system_mmio.h](baremetal/include/system_mmio.h)
-for the documented CPU6 device addresses and
-[system_finch.h](baremetal/include/system_finch.h) for the Finch/Floppy
-Controller registers and the bare-metal Finch driver. After `finch_init`,
-the driver reads and writes 400-byte sectors and formats tracks of 29 sectors.
-`finch_format_disk` formats all cylinders using the selected head count and the
-same track data on every track. Run `make tests-finch` to verify the driver on
-the JavaScript simulator with a scratch disk in memory.
-
-## Install and run under CENTOS
-
-Provide a 512-byte-stride CENTOS Hawk image. Use the installer to add the
-example to a new disk copy and launch the emulator on that copy.
-
-```sh
-run/cpu6-os6-install /path/to/CENTOS_13.IMG build/out/hello.exf XHELLO6 build/out/hello.img
-run/centurion-system build/out/hello.img
+```text
+.RUN SDCC.XSIEVE
+BASIC
 ```
 
-Open [the web console](http://127.0.0.1:42646/) in your browser. It shows
-CRT0 and CRT1, CPU registers, run state and mounted disks. Use **Real time
-(5 MHz)** to pace the simulated CPU or **Maximum speed** to run as fast as
-the host allows. The selection takes effect while the machine is running
-and can also be changed while paused. Click a CRT to type or paste. At the
-ROM's `D=` prompt, **Boot CENTOS** sends `H1`,
-accepts system disk 1 and enters the browser's current local date and time
-at the CENTOS prompts. On the standard ROM the prompt appears on CRT0.
+In BASIC, use `.LOAD "LIFE1D"` and then `.RUN`. At the CENTOS prompt,
+`.DIR SDCC. 1` lists the C applications, and `RUNTESTS` runs the compiler
+regressions installed on disk. [Application image guide](image/README.md)
 
-**Load image** selects a raw Hawk image on your computer, mounts it in
-DSK2 unit 1 and resets the CPU. Use **Run** if the CPU is paused. The
-console accepts 400-byte and 512-byte sector strides. **Save image** downloads a copy of the current contents of that
-drive. **Stop server** closes the emulator process. Save the image before
-stopping the server to retain in-memory changes.
+The web console provides both CRTs, CPU controls, **Load image**,
+**Save image**, **Stop server**, and a choice of nominal 5 MHz or maximum
+speed. Save the image before stopping the server to keep disk changes.
+The server listens on loopback by default. On CRT0 over Telnet (port
+2324), enter `H1` at `D=`, press Enter to accept system disk 1, then
+enter the date (`MMDDYY`) and time (`HHMMSS`).
 
-Connect a Telnet client to `127.0.0.1:2324`. At the ROM's `D=` prompt,
-enter `H1`. Press Enter to accept system disk 1, then enter the date
-(`MMDDYY`) and time (`HHMMSS`). At the CENTOS console, enter `.RUN XHELLO6`.
-With a generated application image available, the launcher mounts it automatically.
-When no disk is mounted, **Boot CENTOS** opens the image picker at `D=`.
+## Compiler targets
 
-The emulator listens on loopback by default. The web console uses HTTP and
-WebSocket on port 42646. The Telnet control panel uses TCP
-port 2323, CRT0 uses 2324, and CRT1 uses 2325. Disk management is on 2326 and
-raw CRT1 is on 2327. At the server prompt, `save <new-file.img>` exports the
-disk in memory and `q` stops the server.
+Both drivers use the Centurion CPU6 port of SDCC.
 
-## Build the complete application image
+| Target | Driver | Guide |
+| --- | --- | --- |
+| CENTOS applications | `run/cpu6-os6-sdcc` | [CENTOS SDK and executable format](doc/sdcc.md) |
+| Bare metal | `run/cpu6-bare-sdcc` | [Bare-metal linking and hardware access](doc/sdcc_bare_metal.md) |
 
-Run `./dobuild SEED=/path/to/CENTOS_13.IMG` to build the compiler, the
-applications and the CENTOS disk image using your local seed and firmware
-pack. The result is `build/out/image/centos-apps.img`.
-See the [image build guide](image/README.md) for its applications and
-`RUNTESTS`. Use `make sdk` for the compiler and emulator alone.
+The CENTOS driver produces relocatable `.exf` files. The bare-metal driver
+produces a raw `.bin` linked at a specified load address, `0x2000` by default.
 
-## Build BASIC
+## BASIC example
 
-```sh
-make basic
-make basic-image SEED=/path/to/CENTOS_13.IMG
-run/centurion-system build/out/basic/centos-basic.img
-```
+This C application adapts Stefan's BASIC for CENTOS. Its performance goal is
+to compete with BASIC on 1980s 8-bit microcomputers, using published timings
+as references for benchmarks on the emulated CPU6.
 
-Enter `BASIC` at the CENTOS prompt. Its files are in the `SBASIC` library. See
-[Stefan BASIC for Centurion](swext/stefan-basic/CENTURION.md).
+Stored programs compile to typed bytecode. The REPL includes an editor,
+and `DEFINT` selects 16-bit integer variables. BASIC also supports
+single-precision real arithmetic, string variables and structured loops
+with `FOR/NEXT` and `WHILE/WEND`. [BASIC guide and benchmark commands](doc/basic.md)
 
-## Sources
+## Performance
 
-| Submodule | Centurion changes |
-| --- | --- |
-| SDCC | [CPU6 backend and frontend](swext/sdcc/CENTURION.md) |
-| Fuzix-Bintools | [EE200 assembler and CBIN linker](swext/fuzix-bintools/CENTURION.md) |
-| Historical EE200 runtime | Optional provenance checkout. The SDK builds its [native helpers](lib/compiler/README.md) |
-| C instruction emulator | [Regression test core](swext/centurion-c/CENTURION.md) |
-| JavaScript emulator | [Headless CENTOS integration](swext/centurion-js/CENTURION.md) |
-| Stefan BASIC | [CENTOS port and typed bytecode VM](swext/stefan-basic/CENTURION.md) |
-| mcu-max | [Chess engine](swext/mcu-max/CENTURION.md) |
-| E-Kermit | [CENTOS receiver](swext/ekermit/CENTURION.md) |
+- The SDCC C sieve produced all 1,229 primes through 9,973 in **9.62 s**,
+  including console output. The original CENTOS CPL sieve took **97.09 s**
+  for the same primes. [Sieve measurements and compiler comparisons](doc/sdcc.md#prime-sieve)
+- The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with
+  the same fixed seed and 27 output rows. From the first row to the last,
+  the C program took **1.98 s** and integer BASIC took **7.86 s**.
+  [C Life1D](doc/sdcc.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/basic.md#performance)
 
-See [source provenance and publication](doc/sources.md) and [licenses](LICENSE.md).
+These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.
+
+## Upstream projects and credits
+
+| Project | Role | Upstream |
+| --- | --- | --- |
+| SDCC | Cross-compiler adapted to CPU6 | [Small Device C Compiler](https://sdcc.sourceforge.net/) |
+| Fuzix-Bintools | EE200 assembler and linker, from Alan Cox's Fuzix tools | [Fuzix-Bintools](https://codeberg.org/EtchedPixels/Fuzix-Bintools) |
+| Fuzix Compiler Kit, EE200 runtime | Historical runtime assembly and provenance | [EE200 support sources](https://github.com/EtchedPixels/Fuzix-Compiler-Kit/tree/7b2a72edea6967e7df0b32e1e898fdea1754cc67/supportee200) |
+| CenRE and the Centurion JavaScript server | Modified emulator derived from Meisaka Yukara's CenRE and the server adaptation by billsargent | [Centurion JavaScript emulator](https://github.com/billsargent/centurion) |
+| Centurion C emulator | Independent instruction core used by compiler tests | [EtchedPixels/Centurion](https://github.com/EtchedPixels/Centurion) |
+| Stefan's BASIC | POSIX interpreter used as the base for the CENTOS application | [slviajero/tinybasic](https://github.com/slviajero/tinybasic) |
+| mcu-max and micro-Max | Chess engine on the application image | [mcu-max](https://github.com/Gissio/mcu-max) · [H. G. Muller's micro-Max](https://home.hccnet.nl/h.g.muller/max-src2.html) |
+| E-Kermit | File-transfer protocol used by the CENTOS receiver | [Frank da Cruz's E-Kermit](https://www.kermitproject.org/ek.html) |
+| TypeScript and ws | Emulator build and WebSocket server | [TypeScript](https://github.com/microsoft/TypeScript) · [ws](https://github.com/websockets/ws) |
+
+The [Centurion Computer project](https://github.com/Nakazoto/CenturionComputer)
+provides hardware reference material and reverse-engineering documentation.
+See [source revisions](doc/sources.md) and [licenses](LICENSE.md) for original
+revisions, local adaptations and component notices.

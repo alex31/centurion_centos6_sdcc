@@ -15,7 +15,7 @@ an explicit `git submodule update --remote`.
 | JavaScript emulator | [2bf3550](https://github.com/billsargent/centurion/tree/2bf355026e3f5d4ebdf51138088b9499ccb31b09) | `upstream-software`, selected software files and notices with external firmware |
 | Stefan BASIC | [86ec458](https://github.com/slviajero/tinybasic/tree/86ec458ca3dac9d156ce23bfa28a99f1f39ca656/Basic2/Posix) | `upstream`, selected POSIX interpreter sources and license |
 | mcu-max | [1.0.6](https://github.com/Gissio/mcu-max/tree/aa03caffce50729566b5db6965bf735c31f33eea) | `upstream`, engine sources and license |
-| E-Kermit | 1.8 protocol release | `upstream`, protocol sources and license |
+| E-Kermit | [1.8 protocol release](https://www.kermitproject.org/ek.html) | `upstream`, protocol sources and license |
 
 The source imports record their upstream revisions and have local Git
 commit IDs. The optional EE200 import preserves the
@@ -44,5 +44,6 @@ For the other components, push both the original branch named above and
 at the original commit. Run `git -C swext/sdcc fetch --unshallow upstream master`
 before pushing the SDCC branches to an empty remote. Set each fork's
 default branch to its `.gitmodules` branch so the shallow checkout contains the
-distribution branch. Then push `main` of this repository and verify a plain
-clone with `make check`.
+distribution branch. Push `main` to `alex31/centurion_centos6_sdcc` and
+verify a fresh clone with `make check`. Publishing `experimental/system_jcl`
+also requires its pinned JavaScript emulator revision to be reachable.
