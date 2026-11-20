@@ -84,7 +84,7 @@ precompiled object/archive inputs are still validated and pruned. The generated
 
 First check `mode` in the generated JSON report. If it is `"resident"`, all
 mapped definitions were discarded and there is no companion module: use the
-[ordinary executable workflow](../README.md#install-and-run-under-centos) and the
+[ordinary executable workflow](sdcc.md#compile-and-run-an-application) and the
 single `.RUN` command in the generated job.
 
 For `"mode": "mmu"` and a build named `build/out/XAPP.exf`, use the generated module
@@ -101,7 +101,7 @@ run/centurion-system build/out/centos-xapp.img
 ```
 
 The output image must be new. Follow the
-[console boot procedure](../README.md#install-and-run-under-centos), then enter the
+[console boot procedure](../README.md#start-a-centos-session), then enter the
 two commands printed by `cat build/out/XAPP.job`: `.LOAD BASIC` with the generated
 module name, followed by `.RUN XAPP`. The `.job` is a text listing; producing it
 does not by itself install an executable CENTOS job file.
