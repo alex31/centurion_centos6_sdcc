@@ -109,7 +109,7 @@ make basic-image SEED=/path/to/CENTOS_13.IMG
 run/centurion-system build/out/basic/centos-basic.img
 ```
 
-Enter `STARTBASIC` at the CENTOS prompt. See
+Enter `BASIC` at the CENTOS prompt. Its files are in the `SBASIC` library. See
 [Stefan BASIC for Centurion](swext/stefan-basic/CENTURION.md).
 
 ## Sources

@@ -38,13 +38,19 @@ automatically when called without an image argument. At `D=`, click
 
 | CENTOS command | Program |
 | --- | --- |
-| `STARTBASIC` | Start Stefan BASIC. Use `.LOAD "LIFE1D"`, then `.RUN`, for the integer Life example |
+| `BASIC` | Start Stefan BASIC. Use `.LOAD "LIFE1D"`, then `.RUN`, for the integer Life example |
 | `.RUN XSIEVE` | SDCC-compiled prime sieve |
 | `.RUN XCONNECT4` | Connect Four |
 | `.RUN XCHESS` | Chess |
 | `.RUN XLIFE1D` | One-dimensional Life in C |
 | `.RUN XKERMIT` | E-Kermit receiver for CRT1 |
 | `RUNTESTS` | Run the 44 CENTOS executables from the main CPU6 compiler regression suite |
+
+The `SBASIC` library on disk 1 holds the BASIC job, its executable, modules
+and examples. The root `BASIC` command starts `SBASIC.BASIC`. Its job checks
+the native monitor entry and loads the module when it is absent. Use `BASIC`
+again after `.BYE` to return to the REPL. Use `.DIR SBASIC. 1` at the CENTOS
+prompt to browse the library. BASIC reads and saves source files there.
 
 In BASIC, `.LOAD "BDEMO"` followed by `.RUN` demonstrates real arithmetic,
 mixed numeric and string data, and nested `WHILE` and `FOR` loops.

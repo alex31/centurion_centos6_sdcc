@@ -1,4 +1,4 @@
-"""Read and populate existing root files on a padded CENTOS Hawk disk."""
+"""Read and populate existing files on a padded CENTOS Hawk disk."""
 from dataclasses import dataclass
 
 STRIDE = 512
@@ -9,73 +9,98 @@ ENTRY_BYTES = 16
 
 
 @dataclass(frozen=True)
-class RootEntry:
+class FileEntry:
     kind: int
     allocation_sector: int
     allocation_index: int
+    table: int
+    volume: range | tuple[int, ...]
 
 
 def read_u16(data, offset):
     return (data[offset] << 8) | data[offset + 1]
 
 
-def root_entry(data, name):
-    if len(data) != HAWK_BYTES:
-        raise ValueError("expected a 6,651,904-byte Hawk image")
+def _directory_entry(data, name, directory, table, volume):
     expected = bytes(byte | 0x80 for byte in name.ljust(10).encode("ascii"))
-    header = ROOT_SECTOR * STRIDE
-    for sector in range(ROOT_SECTOR, ROOT_SECTOR + 100):
+    for index, sector in enumerate(directory):
         start = sector * STRIDE
-        first = ENTRY_BYTES if start == header else 0
+        first = ENTRY_BYTES if index == 0 else 0
         for offset in range(start + first, start + PAYLOAD, ENTRY_BYTES):
             if data[offset:offset + 2] == b"\x84\x8d":
                 return None
             if data[offset:offset + 10] == expected:
-                return RootEntry(data[offset + 13] & 0x0f,
-                                 read_u16(data, offset + 11), data[offset + 10])
+                return FileEntry(data[offset + 13] & 0x0f,
+                                 read_u16(data, offset + 11), data[offset + 10], table, volume)
     return None
 
 
+def root_entry(data, name):
+    if len(data) != HAWK_BYTES:
+        raise ValueError("expected a 6,651,904-byte Hawk image")
+    table = read_u16(data, ROOT_SECTOR * STRIDE + 14)
+    return _directory_entry(data, name, range(ROOT_SECTOR, ROOT_SECTOR + 100),
+                            table, range(HAWK_BYTES // STRIDE))
+
+
+def file_entry(data, path):
+    library, separator, member = path.partition('.')
+    entry = root_entry(data, library)
+    if not separator or entry is None:
+        return entry
+    if entry.kind != 5:
+        raise ValueError(f'{library} is not a CENTOS library')
+    volume = tuple(allocated_sectors(data, entry))
+    if not volume or len(set(volume)) != len(volume):
+        raise ValueError(f'{library} has an invalid allocation')
+    table = read_u16(data, volume[0] * STRIDE + 14)
+    directory = _directory_entry(data, '@PDIR0', volume[:1], table, volume)
+    if directory is None or directory.kind != 0:
+        raise ValueError(f'{library} has no library directory')
+    return _directory_entry(data, member, allocated_sectors(data, directory), table, volume)
+
+
 def allocated_sectors(data, entry):
-    directory = ROOT_SECTOR * STRIDE
-    table = read_u16(data, directory + 14) * STRIDE
-    record = table + entry.allocation_sector * STRIDE + entry.allocation_index * 3
-    if record + 6 > len(data) or data[record + 4] > 20:
+    page = entry.table + entry.allocation_sector
+    index = entry.allocation_index
+    if page >= len(entry.volume) or index * 3 + 6 > PAYLOAD:
+        raise ValueError("invalid CENTOS allocation header")
+    record = entry.volume[page] * STRIDE + index * 3
+    if data[record + 4] > 20:
         raise ValueError("invalid CENTOS allocation header")
     cluster_size = 1 << data[record + 4]
-    page = record + 6
-    index = 0
+    index += 2
     seen = set()
     sectors = []
-    while index < 155:
-        offset = page + index * 3
-        if offset in seen or offset + 3 > len(data):
+    while True:
+        if page >= len(entry.volume) or index * 3 + 3 > PAYLOAD:
+            raise ValueError("invalid CENTOS allocation chain")
+        offset = entry.volume[page] * STRIDE + index * 3
+        if offset in seen:
             raise ValueError("invalid CENTOS allocation chain")
         seen.add(offset)
         if data[offset] == 0xff:
             link = data[offset + 1]
             if link == 0xff:
                 return sectors
-            page = table + (link ^ 0xff) * STRIDE
+            page = entry.table + (link ^ 0xff)
             index = data[offset + 2]
             continue
         start = read_u16(data, offset + 1)
         end = start + cluster_size
-        if end > len(data) // STRIDE:
-            raise ValueError("CENTOS allocation extends beyond the disk")
-        sectors.extend(range(start, end))
+        if end > len(entry.volume):
+            raise ValueError("CENTOS allocation extends beyond its volume")
+        sectors.extend(entry.volume[start:end])
         index += 1
-    return sectors
 
 
-
-def write_root_file(image, name, kind, data):
+def write_file(image, name, kind, data):
     if not data or len(data) % PAYLOAD:
         raise ValueError('payload must contain whole 400-byte sectors')
-    entry = root_entry(image, name)
+    entry = file_entry(image, name)
     file_types = {'BIN': 1, 'TXT': 2, 'EXF': 4}
     if entry is None or entry.kind != file_types[kind]:
-        raise ValueError(f'a root {kind} named {name} is required')
+        raise ValueError(f'a {kind} named {name} is required')
     sectors = allocated_sectors(image, entry)
     count = len(data) // PAYLOAD
     if count > len(sectors):
@@ -87,3 +112,9 @@ def write_root_file(image, name, kind, data):
         start = index * PAYLOAD
         image[offset:offset + PAYLOAD] = data[start:start + PAYLOAD]
     return count
+
+
+def write_root_file(image, name, kind, data):
+    if '.' in name:
+        raise ValueError('a root filename is required')
+    return write_file(image, name, kind, data)

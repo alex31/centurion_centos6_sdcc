@@ -109,7 +109,7 @@ async function main() {
 
     try {
         await session.boot();
-        await command('STARTBASIC');
+        await command('BASIC');
         const results = {};
         for (const name of selected) {
             const {body, variables = ['K'], expected, tolerance = [], c64Seconds} = benchmarks[name];

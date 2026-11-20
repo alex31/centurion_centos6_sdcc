@@ -62,7 +62,8 @@ async function main() {
 
     try {
         await session.boot();
-        await command('STARTBASIC');
+        const startup = await command('BASIC');
+        assert.match(startup, /\.LOAD BASIC SBASIC\.M[0-9A-F]{8}\b/);
         const loaded = await command('.LOAD "LIFE1D"');
         assert.match(loaded, /Loaded/);
         const samples = [];

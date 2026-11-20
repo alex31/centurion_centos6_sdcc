@@ -113,13 +113,11 @@ def main():
         '--no-auto-inline', '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
     games = work / 'programs.img'
-    life = work / 'LIFE1D.txt'
-    life.write_bytes(encode((ROOT / 'image/programs/life1d/life1d.bas').read_text()))
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
-        '--job', f'RUNTESTS={job}', '--job', f'LIFE1D={life}', '-o', games)
+        '--job', f'RUNTESTS={job}', '-o', games)
     final_image = work / 'centos-apps.img'
     run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', games,
-        '--check-games', '-o', final_image)
+        '--example', f'LIFE1D={ROOT / "image/programs/life1d/life1d.bas"}', '--check-games', '-o', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
     run('node', ROOT / 'tests/games-vt100.js', final_image)
