@@ -1,5 +1,7 @@
 # Calling CENTOS JCL from C
 
+This integration is available on `experimental/system_jcl`.
+
 Include `<os6.h>` and link with `run/cpu6-os6-sdcc`. `system_jcl()` passes a
 text job stream to the native interpreter in a separate CENTOS partition.
 The calling C program resumes with the captured `SYSLOG` output.
@@ -92,8 +94,7 @@ emulate the one-way lead and cover a paused multi-sector job, `.DIR` output,
 truncation and a zero-size buffer.
 
 ```sh
-make sdk
-node tests/system-jcl.js /path/to/CENTOS_13.IMG
+make tests-jcl SEED=/path/to/CENTOS_13.IMG
 node tests/system-jcl.js --installed build/out/image/centos-apps.img
 ```
 

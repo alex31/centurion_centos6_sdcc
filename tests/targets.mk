@@ -5,7 +5,7 @@ TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games tests-finch bench-basic
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games tests-finch tests-jcl bench-basic
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -44,3 +44,6 @@ tests-finch: sdk
 
 bench-basic: emulator
 	node "$(TESTS)/basic-benchmark.js" "$(APP_IMAGE)" "" "$(BASIC_BENCHMARKS)"
+
+tests-jcl: sdk
+	node "$(TESTS)/system-jcl.js" "$(SEED)"
