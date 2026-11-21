@@ -212,6 +212,51 @@ int main(void)
         assert(cpu6instructionSize(p + 1) == 1);
         free(p);
     }
+    /* Lot 1-3 additions: bgz/ble, ldw/stw, push/pop, ivr 2-op, jmp @(b), 2-digit stack offsets */
+    {
+        PROGRAM("nop", "bgz Lpos", "ble Lpos", "Lpos:", "rsr");
+        assert(!cpu6notUsed("nf", p, p));
+        assert(!cpu6notUsed("zf", p, p));
+        assert(cpu6notUsed("cf", p, p));
+        assert(cpu6instructionSize(p + 1) == 2);
+        assert(cpu6instructionSize(p + 2) == 2);
+        free(p);
+    }
+    {
+        PROGRAM("nop", "ldw y,18(s)", "stw y,20(s)", "rsr");
+        assert(cpu6notUsed("y", p, p));
+        assert(!cpu6notUsed("s", p, p));
+        assert(cpu6instructionSize(p + 1) == 4);
+        assert(cpu6instructionSize(p + 2) == 4);
+        free(p);
+    }
+    {
+        PROGRAM("nop", "push xh,zl", "pop xh,zl", "rsr");
+        assert(!cpu6notUsed("x", p, p));
+        assert(!cpu6notUsed("y", p, p));
+        assert(!cpu6notUsed("z", p, p));
+        assert(cpu6notUsed("a", p, p));
+        assert(cpu6instructionSize(p + 1) == 2);
+        assert(cpu6instructionSize(p + 2) == 2);
+        free(p);
+    }
+    {
+        PROGRAM("nop", "ivr b,2", "rsr");
+        assert(!cpu6notUsed("b", p, p));
+        assert(cpu6notUsed("a", p, p));
+        assert(cpu6instructionSize(p + 1) == 2);
+        free(p);
+    }
+    {
+        PROGRAM("nop", "jmp @(b)");
+        assert(!cpu6notUsed("b", p, p));
+        assert(cpu6instructionSize(p + 1) == 2);
+        free(p);
+    }
+    assert(cpu6canAssign("b", "16(s)", "stable-load"));
+    assert(cpu6canAssign("y", "18(s)", "extended-load"));
+    assert(!cpu6canAssign("b", "(0xf200)", "stable-load"));
+    assert(!cpu6canAssign("y", "(0xf200)", "extended-load"));
     puts("PASS: CPU6 peephole register aliases, flags, branches, loops and calls");
     return 0;
 }

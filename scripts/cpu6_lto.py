@@ -14,12 +14,13 @@ BEGIN = re.compile(r'^; CPU6 function (\S+) begin$')
 END = re.compile(r'^; CPU6 function (\S+) end$')
 ABI = re.compile(r'^; CPU6 ABI (\w+) frame=(\d+) saved=(\d+) variadic=(\d+) asm=(\d+)$')
 BRANCHES = {'bz': 'bnz', 'bnz': 'bz', 'bm': 'bp', 'bp': 'bm',
+            'bgz': 'ble', 'ble': 'bgz',
             'bl': 'bnl', 'bnl': 'bl', 'bf': 'bnf', 'bnf': 'bf'}
-SAFE = set('lda ldb ldx sta stb stx ldab ldbb stab stbb xfr xfrb xab xax xay xaz '
+SAFE = set('lda ldb ldx ldw sta stb stx stw ldab ldbb stab stbb xfr xfrb xab xax xay xaz '
            'cla clr clrb iva ivr ivrb ina inx dca dcx inr inrb dcr dcrb '
            'aab sab nab add sub and ori ore addb subb andb orib oreb '
            'slr srr rlr rrr slrb srrb rlrb rrrb sla sra sl rl sf rf nop '
-           'mul div jmp bra jsr .byte'.split()) | BRANCHES.keys()
+           'mul div push pop jmp bra jsr .byte'.split()) | BRANCHES.keys()
 
 
 def instruction(line):
@@ -70,15 +71,22 @@ def candidate(function, private):
     except ValueError:
         return None, 'missing entry label'
     lines = [line for line in function.lines[entry + 1:] if line and not line.startswith(';')]
-    if not lines or instruction(lines[0]) != ('stx', '(-s)'):
+    if not lines or len(lines) < 3:
         return None, 'unrecognized prologue'
-    if len(lines) < 3 or [instruction(line) for line in lines[-2:]] != [('ldx', '(s+)'), ('rsr', '')]:
-        return None, 'unrecognized return'
+    first_op = instruction(lines[0])
+    last_ops = [instruction(line) for line in lines[-2:]]
+    valid_frame = (
+        (first_op == ('stx', '(-s)') and last_ops == [('ldx', '(s+)'), ('rsr', '')]) or
+        (first_op == ('push', 'xh,yl') and last_ops == [('pop', 'xh,yl'), ('rsr', '')]) or
+        (first_op == ('push', 'xh,zl') and last_ops == [('pop', 'xh,zl'), ('rsr', '')])
+    )
+    if not valid_frame:
+        return None, 'unrecognized prologue'
     body = lines[1:-2]
     if sum(bool(instruction(line)[0]) for line in body) > 48:
         return None, 'function exceeds instruction budget'
     labels = {line[:-1] for line in body if line.endswith(':')}
-    compact = function.abi[:4] == ('stack', '0', '2', '0')
+    compact = function.abi[:4] == ('stack', '0', '2', '0') and first_op == ('stx', '(-s)')
     for line in body:
         op, args = instruction(line)
         if not op:

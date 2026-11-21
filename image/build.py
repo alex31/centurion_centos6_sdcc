@@ -110,8 +110,8 @@ def main():
     programs = build_programs(work)
     tests, job, test_count = build_tests(work)
     basic_artifacts = work / 'basic'
-    run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'size',
-        '--no-auto-inline', '--stack-size', '1536',
+    run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'speed',
+        '--stack-size', '1536',
         '-o', basic_artifacts / 'BASIC.exf')
     programs_image = work / 'programs.img'
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
