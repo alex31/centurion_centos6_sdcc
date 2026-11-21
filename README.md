@@ -32,9 +32,13 @@ node --version
 npm --version
 ```
 
-Supply a local CenRE firmware-bearing `cen.ts` and a 512-byte-stride
-`CENTOS_13.IMG` Hawk image. See the Centurion archive's instructions for
-obtaining a system image. [Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+Download the pinned upstream CenRE `src/cen.ts` for the importer. It contains
+the embedded firmware tables that the bundled emulator loads at runtime.
+[Download upstream cen.ts](https://raw.githubusercontent.com/billsargent/centurion/2bf355026e3f5d4ebdf51138088b9499ccb31b09/src/cen.ts)
+
+Supply a 512-byte-stride `CENTOS_13.IMG` Hawk image. See the Centurion
+archive's instructions for obtaining a system image.
+[Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
 
 Import the firmware tables, then build the compilers, emulator, applications
 and bootable CENTOS image.

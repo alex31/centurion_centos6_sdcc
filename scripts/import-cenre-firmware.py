@@ -34,6 +34,12 @@ def import_firmware(source, spec, output):
         values = re.sub(r'//[^\n]*', '', mapping[1]).strip().rstrip(',')
         roms['map'] = bytes(int(token.strip(), 16) for token in values.split(','))
 
+    if not roms and '__cenFirmware' in text:
+        raise ValueError(
+            f'{source} loads firmware from the host via __cenFirmware. '
+            'Use the pinned upstream cen.ts with embedded firmware linked in README.md.'
+        )
+
     for name, length in lengths.items():
         if name not in roms:
             raise ValueError(f'Missing firmware table: {name}')

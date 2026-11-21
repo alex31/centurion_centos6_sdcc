@@ -12,15 +12,19 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 class OS6Session {
     constructor(diskPath) {
-        const bytes = fs.readFileSync(diskPath);
-        if (bytes.length !== 6651904) throw new Error('Expected a 6 651 904 byte Hawk image');
-        this.machine = new CoreEmulator();
+        const imagePath = path.resolve(diskPath);
+        if (fs.statSync(imagePath).size !== 6651904) throw new Error('Expected a 6 651 904 byte Hawk image');
+        const previousImage = process.env.CENTURION_DISK_IMAGE;
+        process.env.CENTURION_DISK_IMAGE = imagePath;
+        try {
+            this.machine = new CoreEmulator();
+        } finally {
+            if (previousImage === undefined) delete process.env.CENTURION_DISK_IMAGE;
+            else process.env.CENTURION_DISK_IMAGE = previousImage;
+        }
         if (!bridge.isRealCPULoaded()) throw new Error('CPU core is a stub');
         this.port = global.window.io_mux.muxports[0];
         this.disk = global.window.io_dsk2.units[1];
-        const data = Uint8Array.from(bytes);
-        this.disk.image = {type: 'hawk', filename: path.basename(diskPath), stride: 512,
-                           backing_data: data.buffer, protect: false, data};
         this.output = '';
         const originalWrite = this.port.write_data.bind(this.port);
         this.port.write_data = value => {
