@@ -133,9 +133,11 @@ node tests/basic-life.js build/out/image/centos-apps.img 3
 
 ## Implementation
 
-The program arena is 4 KiB. The CENTOS build keeps the REPL and editor,
-compiler, VM, text operations and mathematical routines in code overlays
-and a mapped module. The CPU6 dispatch loop has assembly fast paths for
+The distributed image reserves 5,632 bytes (5.5 KiB) for the tokenized
+program, its line index, compiled bytecode and numeric arrays. The string
+heap has a separate 4 KiB reservation. The CENTOS build keeps the REPL,
+editor, compiler, VM, text operations and mathematical routines in code
+overlays and a mapped module. The CPU6 dispatch loop has assembly fast paths for
 common bytecode operations. See
 [the Centurion BASIC port notes](../swext/stefan-basic/CENTURION.md) for
 the supported features and memory organization.

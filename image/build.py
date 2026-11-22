@@ -111,7 +111,7 @@ def main():
     tests, job, test_count = build_tests(work)
     basic_artifacts = work / 'basic'
     run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'speed',
-        '--stack-size', '1536',
+        '--stack-size', '1536', '--memory', '5632',
         '-o', basic_artifacts / 'BASIC.exf')
     programs_image = work / 'programs.img'
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
@@ -119,6 +119,7 @@ def main():
     final_image = work / 'centos-apps.img'
     run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', programs_image,
         '--example', f'LIFE1D={ROOT / "image/programs/life1d/life1d.bas"}', '--check-games', '-o', final_image)
+    run(sys.executable, ROOT / 'tests/basic-capacity.py', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
     run('node', ROOT / 'tests/games-vt100.js', final_image)
