@@ -27,7 +27,7 @@ PORTS = {
     'chemst': {},
     'chief': {},
     'chomp': {
-        90: 'DEFINT A',
+        90: 'DEFINT A,I,J,N,T',
         95: 'DIM A(99)',
         350: 'REM',
         375: 'A((I-1)*10+J-1)=0',
@@ -48,6 +48,7 @@ PORTS = {
         960: 'A((I-1)*10+J-1)=0',
     },
     'diamnd': {
+        1: 'DEFINT A,C,L,M,N,Q,X,Y,Z',
         5: 'INPUT R:PRINT:IF R<5 OR R>31 OR R MOD 2<>1 THEN 3',
         25: f'PRINT LEFT$({BLANKS},(R-N)/2);',
         53: 'IF M=Q THEN 56',

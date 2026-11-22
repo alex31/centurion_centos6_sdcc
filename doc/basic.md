@@ -92,6 +92,10 @@ Chomp, Hurkle and Trap take the two numbers at separate prompts. Chief, Diamond
 and 3D Plot draw with printable characters and spaces on the VT100. Use
 Ctrl+C to return to CENTOS from games that keep offering another round.
 
+Chomp and Diamond use `DEFINT` for bounded indices and loop counters.
+The comparison runs produced identical terminal output with the same
+inputs, including retries after invalid values.
+
 Use `.DIR` in BASIC for the installed programs. The upstream submodule
 holds the original listings for further porting. [Audit and remaining ports](basic-games-porting.md)
 
