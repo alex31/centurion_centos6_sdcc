@@ -19,11 +19,13 @@ delete process.env.CENTURION_DISK_IMAGE;
 // Exercise the distribution entry point and real HTTP/WebSocket parsers using
 // two linked byte streams. This also works without permission to open sockets.
 let webServer;
+let telnetCrt1;
 const listen = net.Server.prototype.listen;
 const exists = fs.existsSync;
 try {
     net.Server.prototype.listen = function(port) {
         if (port === 42646) webServer = this;
+        if (port === 2325) telnetCrt1 = this;
         return this;
     };
     // Test the empty drive even if the user has staged a default boot disk.
@@ -49,13 +51,17 @@ function stream() {
     });
 }
 
-function createConnection() {
+function connectToServer(listener) {
     const client = stream();
     const server = stream();
     client.peer = server;
     server.peer = client;
-    webServer.emit('connection', server);
+    listener.emit('connection', server);
     return client;
+}
+
+function createConnection() {
+    return connectToServer(webServer);
 }
 
 function request(route, method = 'GET', body, headers = {}) {
@@ -89,6 +95,33 @@ async function waitFor(check, label, seconds = 20) {
 
 function screen(terminal) {
     return terminal ? String.fromCharCode(...terminal.cells.map(cell => cell & 127)) : '';
+}
+
+async function checkTerminalStatusBeforeConnect() {
+    const crt1 = global.window.io_mux.muxports[1];
+    const receive = crt1.receive;
+    const received = [];
+    const banner = 'Offline CRT';
+    const status = [2, 80, 107, 100, 88, 64, 64, 32 + banner.length, 32, 32, 13];
+    let client;
+    crt1.receive = byte => received.push(byte);
+    try {
+        for (const ch of banner + '\x1b\x05') crt1.write_data(ch.charCodeAt(0));
+        await waitFor(() => received.length >= status.length, 'a CRT status reply without any client', 2);
+        assert.deepEqual(received, status);
+
+        client = connectToServer(telnetCrt1);
+        let output = '';
+        client.on('data', bytes => { output += bytes.toString(); });
+        await waitFor(() => output.includes(banner), 'the replayed CRT output on Telnet', 2);
+        client.write('K');
+        await waitFor(() => received.includes(75), 'Telnet input after replay', 2);
+        assert.deepEqual(received, [...status, 75], 'Telnet replay sent another status reply');
+    } finally {
+        client?.peer.destroy();
+        client?.destroy();
+        crt1.receive = receive;
+    }
 }
 
 async function checkConsolePage(html, script, image) {
@@ -157,6 +190,7 @@ async function checkConsolePage(html, script, image) {
 }
 
 async function main() {
+    await checkTerminalStatusBeforeConnect();
     const page = await request('/');
     assert.equal(page.status, 200);
     assert.match(page.body.toString(), /CRT0[\s\S]*CRT1[\s\S]*Stop server/);
