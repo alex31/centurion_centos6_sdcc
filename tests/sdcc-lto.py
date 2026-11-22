@@ -21,6 +21,24 @@ uint32_t wide_xor(uint32_t a);
 uint16_t touch(uint16_t *p,uint16_t v);
 uint16_t local_work(uint16_t v);
 int16_t char_mix(int8_t a,uint8_t b);
+uint16_t saved_word(void);
+''')
+# The word at 4(S) belongs to the register range while the push is active.
+(work/'registers.s').write_text('''    .setcpu 6
+    .code
+    .export _saved_word
+; CPU6 function _saved_word begin
+; CPU6 ABI stack frame=0 saved=2 variadic=0 asm=0
+_saved_word:
+    stx (-s)
+    push ah,xl
+    lda 0x1234
+    sta 4(s)
+    pop ah,xl
+    xfr x,b
+    ldx (s+)
+    rsr
+; CPU6 function _saved_word end
 ''')
 (work/'callee.c').write_text('''#include "api.h"
 static uint16_t state=100;
@@ -57,6 +75,7 @@ uint16_t check_twice(uint16_t a){return twice(a)+1U;}
 uint16_t check_recursion(uint16_t n){return recursion(n)+1U;}
 uint16_t check_keep(uint16_t a,uint16_t b){uint16_t keep=a+103U;return twice(b)^keep;}
 uint16_t check_local(uint16_t a){return local_work(a)+1U;}
+uint16_t check_saved(void){return saved_word()+1U;}
 int16_t check_char(int8_t a,uint8_t b){return char_mix(a,b)-1;}
 uint16_t branch_block(uint16_t a){uint16_t t=0;if(a&1){t=mix(a,1);t=mix(t,2);t=mix(t,3);t=mix(t,4);t=mix(t,5);}return t;}
 int main(void){uint16_t i,v=0x1234U,local=32760U;
@@ -79,7 +98,7 @@ for a in [0,1,32767,65535]:
         value=a
         for b in range(1,6):value=(((value<<3)^b)+37)&65535
     checks.append((f'branch_block({a}U)',value))
-checks.append(('check_char(-128,255)',126))
+checks.extend([('check_char(-128,255)',126), ('check_saved()',0x1235)])
 for index,(expression,expected) in enumerate(checks):
     caller+=f'if({expression}!={expected}U){{puts("FAIL LTO {index}");return 1;}}\n'
 caller+='''if(wide_xor(0xabcdef19UL)!=0xb9f9b961UL){puts("FAIL LTO wide");return 1;}
@@ -87,12 +106,14 @@ if(check_wide(0xabcdef19UL)!=0xb9f9b962UL){puts("FAIL LTO wide frame");return 1;
 puts("PASS LTO cross-unit calls and ABI");return 0;}
 '''
 (work/'caller.c').write_text(caller)
-rows=execute(work,[work/'caller.c',work/'callee.c',work/'other.c'],[
+rows=execute(work,[work/'caller.c',work/'callee.c',work/'other.c',work/'registers.s'],[
     ('normal',['-O1']),('lto',['-O1','--lto']),
     ('lto-no-ab',['-O1','--lto','--sdcc-option=--cpu6-no-ab-allocation']),
     ('lto-stack',['-O0','--lto'])],common=['--sdcc-option=--cpu6-no-auto-inline'])
 report=json.loads((work/'lto/lto-report.json').read_text())
 assert any(row['callee']=='_mix' for row in report['inlined']),report
+assert any(row['callee']=='_saved_word' and row['mode']=='frame-preserving'
+           for row in report['inlined']),report
 assert not any(row['callee'] in ('_next_private','_other_private')
                for row in report['inlined']),report
 assert any(row['mode']=='frame-preserving' for row in report['inlined']),report

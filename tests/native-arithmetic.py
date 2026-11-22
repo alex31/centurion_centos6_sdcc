@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Differential native MUL/DIV tests: real C decoder versus independent microcode.
+"""Differential CPU6 arithmetic tests: real C decoder versus independent microcode.
 
 Default: complete 16-bit operand sweeps against boundary divisors/multipliers,
 all 8-bit pairs, all mode/flag/context combinations, and deterministic random
@@ -76,6 +76,31 @@ def run(name, rows):
             file.unlink()
 
 
+def unary_flags():
+    # Exercise the incoming link and overflow independently. The eight-bit
+    # and sixteen-bit boundaries differ for both decrement and negate.
+    values = [0, 1, 15, 0x7f, 0x80, 0x8f, 0xff, 0x7fff, 0x8000, 0x800f, 0xffff]
+    for value in values:
+        regs = [0x3456, value, 0x1234, 0, 0, 0xd000, 0, 0]
+        for imm in range(16):
+            for flags in range(0, 256, 16):
+                for op in (0x20, 0x21, 0x22, 0x23):  # BL
+                    yield pack(op, 0x30 | imm, flags, 0, regs)
+                for op in (0x30, 0x31, 0x32, 0x33):  # B or a memory word
+                    yield pack(op, 0x20 | imm, flags, 0, regs)
+                    yield record.pack(op, 0x10 | imm, flags, 0, *regs, 0x5000, 0x5000, value)
+
+
+def word_alu_modes():
+    samples = random.Random(0x5055d6)
+    for op in (*range(0x50, 0x56), 0xd6):
+        for mode in range(256):
+            for sample in range(16):
+                regs = [samples.randrange(65536) for _ in range(8)]
+                extension = samples.randrange(65536) if mode & 0x11 == 0x10 else 0x5000
+                yield pack(op, mode, sample << 4, sample, regs, extension, samples.randrange(65536))
+
+
 def mode_cases():
     for op in (0x77, 0x78):
         for mode in range(256):
@@ -123,6 +148,8 @@ def sweep(fixed, reverse):
                            [a, a, b, 0x1234, 0x5678, 0x9abc, 0xdef0, 0x3210])
 
 
+run('unary-flags', unary_flags())
+run('word-alu-modes', word_alu_modes())
 run('modes-flags-contexts', mode_cases())
 run('corner-flags', corners())
 run('random-modes', random_modes())

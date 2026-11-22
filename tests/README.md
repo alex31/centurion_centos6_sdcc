@@ -27,6 +27,10 @@ workload from [Creative Computing, November 1983](https://archive.org/stream/cre
 The test uses the article's `RND(1)` variant. The published Commodore 64
 time was 1 minute 53 seconds.
 
+Use `make bench-basic BASIC_BENCHMARKS=INTBITS,REALCOPY` to measure integer
+bit operations and real-variable copies. Each program runs 1,000 iterations
+and checks its final values before reporting guest microcycles.
+
 The web test uses the real HTTP and WebSocket parsers over in-memory
 connections. If the application image is available, it also runs the
 shipped console script, boots CENTOS, creates a guest file and checks that

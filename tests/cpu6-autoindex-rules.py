@@ -75,6 +75,84 @@ for source in ['(a)', '(x+)', '(-x)']:
     check(['xfr x,a','ldb '+source,'sab','rsr'],'sub x,b',False)
 check(['xfr x,a','!ldb (_limit)','sab','rsr'],'sub x,b',False)
 
+# Run a complete kernel through both profiles, then check the actual linked
+# lengths and results. Only its assembly changes between the two binaries.
+kernel = ['_probe:', 'stx (-s)', 'push yh,yl', 'ldx _slot', 'ldb 2',
+          'lda (x)', 'aab', 'stb (_sum)', 'ldb 0(x)', 'xfr b,y', 'ldb 3',
+          'stb (x)', 'xfr y,a', 'sta (x)', 'lda 7', 'ldb (_sum)', 'pop yh,yl',
+          'ldx (s+)', 'rsr']
+(work/'kernel.in').write_text('\n'.join(kernel)+'\n')
+(work/'kernel.c').write_text("""#include <stdio.h>
+unsigned slot, sum, probe(void);
+int main(void) {
+    slot=9;
+    if (probe()!=11 || slot!=9 || sum!=11) { puts("FAIL compact addressing"); return 1; }
+    puts("PASS compact addressing"); return 0;
+}
+""")
+sizes = {}
+for profile, args in [('speed', []), ('size', ['--size'])]:
+    asm = work/(profile+'.s')
+    subprocess.run([work/'driver',work/'kernel.in',asm,*args],check=True)
+    text = asm.read_text()
+    for pattern in ['add (x),b', 'ldw y,0(x)', 'stw y,(x)']:
+        assert (pattern in text) == (profile=='speed'), (profile, text)
+    asm.write_text('.setcpu 6\n.code\n.export _probe\n'+text)
+    binary = work/(profile+'.bin')
+    subprocess.run([root/'run/cpu6-bare-sdcc','-O1',work/'kernel.c',asm,'-o',binary], check=True)
+    result = subprocess.check_output([root/'tests/centurion-cli','-A','2000','-b',binary],text=True,timeout=10)
+    assert 'PASS compact addressing' in result, result
+    sizes[profile] = binary.stat().st_size
+assert sizes['size'] < sizes['speed'], sizes
+print('Compact addressing kernel executable bytes:', sizes, flush=True)
+
+# In a read/modify/write fold, the old B and reloaded B must denote the
+# same address. The CPU6 memory unary form also cannot index through A.
+for address in ('(b)', '2(b)', '(a)'):
+    check(['ldb '+address, 'inr b', 'stb '+address, 'ldb 0', 'rsr'], 'inr '+address, False)
+
+for first, last in [('!ldb (x)', 'stb (x)'), ('ldb (x)', '!stb (x)')]:
+    check([first, 'inr b', last, 'ldb 0', 'rsr'], 'inr (x)', False)
+
+def rotate(lines):
+    (work/'input.s').write_text('\n'.join(lines)+'\n')
+    subprocess.run([work/'driver', work/'input.s', work/'output.s', '--loops'], check=True)
+    return (work/'output.s').read_text().splitlines()
+
+# B is dead inside the countdown but carries the final zero to the caller.
+countdown = ['Lhead:', 'xfr x,b', 'bz Lexit', 'ldb 9', 'dcr x', 'bra Lhead', 'Lexit:']
+assert rotate(countdown + ['rsr']).count('xfr x,b') == 2
+assert rotate(countdown + ['ldb 0', 'rsr']).count('xfr x,b') == 1
+
+# Hoisting CLR ahead of RLR would destroy the incoming link on the first trip.
+body = ['rlr x', 'clr y', 'stw y,(_out)', 'add x,x', 'dcr z']
+rotated = rotate(['Lhead:', 'ori z,z', 'bz Lexit', *body, 'bra Lhead', 'Lexit:', 'rsr'])
+assert rotated.index('rlr x') < rotated.index('clr y'), rotated
+
+# An otherwise profitable rotation would push a separate short branch out of
+# range. Exercise both directions and a smaller case that fits.
+loop = ['Lhead:', 'lda 37', 'bz Lexit', 'nop', 'bra Lhead', 'Lexit:']
+forward = ['bz Lfar', *loop, *['nop']*117, 'Lfar:', 'rsr']
+backward = ['Lfar:', *['nop']*116, *loop, 'bz Lfar', 'rsr']
+assert 'jz Lfar' in rotate(forward)
+assert 'jz Lfar' in rotate(backward)
+close = ['bz Lfar', *loop, *['nop']*100, 'Lfar:', 'rsr']
+assert 'bz Lfar' in rotate(close)
+# A branch shortened before the extended ALU folds spans 128 bytes afterward.
+check(['bz Lskip', 'jmp Lend', 'Lskip:', *(['lda (x)', 'aab']*4),
+       *['nop']*112, 'Lend:', 'rsr'], 'jnz Lend')
+
+# Check every emitted pseudo against the EE200 assembler's actual bytes.
+# Its JLE/JGT spellings correspond to opcodes BGZ/BLE respectively.
+for n, op in enumerate(('bl', 'bnl', 'bf', 'bnf', 'bz', 'bnz', 'bm', 'bp', 'bgz', 'ble')):
+    lines = rotate([op+' Lfar', *['nop']*128, 'Lfar:', 'rsr'])
+    assert lines[0] != op+' Lfar'
+    (work/'branch.s').write_text('\n'.join(['.setcpu 6', '.code', *lines])+'\n')
+    tools = root/'build/out/toolchain/bin'
+    subprocess.run([tools/'asee200', '-o', work/'branch.o', work/'branch.s'], check=True)
+    subprocess.run([tools/'ldee200', '-b', '-C', '0', '-o', work/'branch.bin', work/'branch.o'], check=True)
+    assert (work/'branch.bin').read_bytes()[:5] == bytes([(0x10+n)^1, 3, 0x71, 0, 133]), lines[0]
+
 (work/'results.json').write_text(json.dumps({'result':'PASS','cases':len(tests),'tests':tests},indent=2)+'\n')
 print('PASS',len(tests),'actual peephole engine cases')
 (root/'build/out/tests/latest-autoindex-rules.txt').write_text(str(work)+'\n')

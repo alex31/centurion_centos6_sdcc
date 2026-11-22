@@ -39,6 +39,22 @@ for mnemonic,opcode,size in operations:
                             records += struct.pack('>BBBB8HBBHH',opcode,mode,flags << 4,level,*regs,
                                                    (offset or 0) & 255,0,effective,value)
                             descriptions.append((mnemonic,address,flags,level,value))
+        # Indirect accesses step over a pointer even for a byte operation.
+        # The pointer targets the known instruction-extension bytes in RAM.
+        for pointer_mode, operand in [(0, f'({base})'), (1, f'({base}+)'), (2, f'(-{base})')]:
+            for offset in (None, -3, 5):
+                address = '@' + (str(offset) if offset is not None else '') + operand
+                assembly.append(mnemonic + ' ' + address)
+                mode = index * 32 + 4 + pointer_mode + (8 if offset is not None else 0)
+                expected.extend([opcode, mode])
+                if offset is not None:
+                    expected.append(offset & 255)
+                regs = [0x1357,0x2468,0x4321,0x5555,0x6666,0xd000,0x7777,0x8888]
+                regs[index] = 0x5000
+                effective = 0x5000 - (2 if pointer_mode == 2 else 0) + (offset or 0)
+                records += struct.pack('>BBBB8HBBHH', opcode, mode, 0xf0, 0, *regs,
+                                       (offset or 0) & 255, 0xa5, effective, 0x0202)
+                descriptions.append((mnemonic, address, 15, 0, 0x0202))
 (work/'all.s').write_text('\n'.join(assembly)+'\n')
 subprocess.run([root/'build/out/toolchain/bin/asee200','-o',work/'all.o',work/'all.s'],check=True)
 subprocess.run([root/'build/out/toolchain/bin/ldee200','-b','-C','0','-o',work/'all.bin',work/'all.o'],check=True)

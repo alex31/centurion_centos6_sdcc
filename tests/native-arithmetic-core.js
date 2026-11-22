@@ -28,14 +28,11 @@ for (let pos = 0, dest = 0; pos < source.length; pos += 26, dest += 22) {
     const address = source.readUInt16BE(pos + 22);
     bus.writebyte(address, source[pos + 24]); bus.writebyte(address + 1, source[pos + 25]);
     cpu.set_pc(0x0200);
-    const arithmetic = source[pos] === 0x77 || source[pos] === 0x78;
-    const shortByte = source[pos] >= 0x48 && source[pos] <= 0x4a;
-    const registerByte = source[pos] >= 0x40 && source[pos] <= 0x45;
-    const end = 0x0200 + (shortByte ? 1 : registerByte ? 2 : arithmetic ? (source[pos + 1] & 0x11 ? 4 : 2) :
-        (source[pos + 1] & 8 ? 3 : 2)); // Indexed load/store records.
     let steps = 0;
     cpu.hspre();
-    do { cpu.hsstep(); steps++; } while (!(cpu.at_boundry && cpu.pc === end) && steps < 10000);
+    // These probes execute one non-branching instruction. The next boundary
+    // supplies its decoded length independently of the C instruction core.
+    do { cpu.hsstep(); steps++; } while (!(cpu.at_boundry && cpu.pc !== 0x0200) && steps < 10000);
     cpu.hsend();
     assert.ok(steps < 10000, `instruction did not return at case ${pos / 26}, pc=${cpu.pc.toString(16)}`);
     totalSteps += steps;

@@ -73,6 +73,23 @@ def build(work, opt, compiler):
     (directory / 'abi.s').write_text('\n'.join(assembly) + '\n')
     (directory / 'driver.c').write_text('''#include <stdio.h>
 int abi(void);
+void *__memcpy(void *, const void *, unsigned);
+static unsigned char source[257], destination[259];
+static const unsigned lengths[] = {0, 1, 255, 256, 257};
+
+static int check_copy(void) {
+    unsigned i, j, length;
+    for (i = 0; i < sizeof(source); ++i) source[i] = i ^ 0x5a;
+    for (j = 0; j < sizeof(lengths) / sizeof(*lengths); ++j) {
+        length = lengths[j];
+        for (i = 0; i < sizeof(destination); ++i) destination[i] = 0xa5;
+        if (__memcpy(destination + 1, source, length) != destination + 1) return 0;
+        for (i = 0; i < sizeof(destination); ++i)
+            if (destination[i] != (i && i <= length ? source[i - 1] : 0xa5)) return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int n = abi();
     if (n) {
@@ -81,6 +98,10 @@ int main(void) {
         putchar("0123456789abcdef"[n & 15]);
         putchar(10);
         return n;
+    }
+    if (!check_copy()) {
+        puts("FAIL memcpy count, return value or guard bytes");
+        return 1;
     }
     puts("PASS");
     return 0;

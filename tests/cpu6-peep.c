@@ -257,6 +257,28 @@ int main(void)
     assert(cpu6canAssign("y", "18(s)", "extended-load"));
     assert(!cpu6canAssign("b", "(0xf200)", "stable-load"));
     assert(!cpu6canAssign("y", "(0xf200)", "extended-load"));
+    {
+        PROGRAM("nop", "dcr (x)", "bl Lend", "Lend:", "rsr");
+        assert(!cpu6notUsed("cf", p, p));
+        assert(cpu6notUsed("of", p, p));
+        free(p);
+    }
+    {
+        PROGRAM("nop", "ivr b,1", "bf Lend", "Lend:", "rsr");
+        assert(!cpu6notUsed("of", p, p));
+        free(p);
+    }
+    {
+        PROGRAM("add a,(_value)", "jmp 4(b)", "ldb @(x)", "jmp @2(x)");
+        assert(cpu6instructionSize(p) == 4);
+        assert(cpu6instructionSize(p + 1) == 3);
+        assert(cpu6instructionSize(p + 2) == 2);
+        assert(cpu6instructionSize(p + 3) == 3);
+        free(p);
+    }
+    assert(!cpu6canAssign("b", "2(b)", "rmw-memory"));
+    assert(!cpu6canAssign("b", "(a)", "rmw-memory"));
+    assert(cpu6canAssign("b", "2(x)", "rmw-memory"));
     puts("PASS: CPU6 peephole register aliases, flags, branches, loops and calls");
     return 0;
 }

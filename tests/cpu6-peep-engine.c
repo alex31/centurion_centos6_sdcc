@@ -1,14 +1,16 @@
 /* Drive the actual SDCC peephole engine and compiled-in CPU6 rules. */
 #include "common.h"
 #include "SDCCpeeph.h"
+#include "cpu6/peep.h"
 #include <assert.h>
 
 extern PORT cpu6_port;
-extern bool cpu6AllocateAB(lineNode *head);
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3 || (argc == 4 && !strcmp(argv[3], "--allocate-ab")));
+    assert(argc == 3 || (argc == 4 && (!strcmp(argv[3], "--allocate-ab") ||
+           !strcmp(argv[3], "--loops") || !strcmp(argv[3], "--size"))));
+    optimize.codeSize = argc == 4 && !strcmp(argv[3], "--size");
     FILE *input = fopen(argv[1], "r"), *output = fopen(argv[2], "w");
     assert(input && output);
     port = &cpu6_port;
@@ -32,8 +34,13 @@ int main(int argc, char **argv)
         tail = line;
     }
     fclose(input);
-    peepHole(&head);
-    if (argc == 4 && cpu6AllocateAB(head)) peepHole(&head);
+    if (argc == 4 && !strcmp(argv[3], "--loops")) {
+        cpu6OptimizeLoops(head);
+    } else {
+        peepHole(&head);
+        if (argc == 4 && !strcmp(argv[3], "--allocate-ab") && cpu6AllocateAB(head)) peepHole(&head);
+    }
+    cpu6FinalizeBranches(head);
     for (lineNode *line = head; line; line = line->next) fprintf(output, "%s\n", line->line);
     fclose(output);
     return 0;

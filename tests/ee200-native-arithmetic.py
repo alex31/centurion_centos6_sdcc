@@ -33,6 +33,22 @@ for mnemonic, opcode in [('mul', 0x77), ('div', 0x78)]:
         expected.extend([opcode, mode | 16, 0, 47, opcode, mode | 1, 0x43, 0x21,
                          opcode, mode | 17, 0, 0])
 source, obj, binary = work / 'all.s', work / 'all.o', work / 'all.bin'
+for mnemonic, opcode in [('add', 0x50), ('sub', 0x51), ('and', 0x52),
+                         ('ori', 0x53), ('ore', 0x54)]:
+    for index, reg in enumerate(registers):
+        mode = index * 32 + 2   # source or index register, result in B
+        lines.extend([f'{mnemonic} {reg},0x1234,b', f'{mnemonic} {reg},(0x5678),b',
+                      f'{mnemonic} -2({reg}),b'])
+        expected.extend([opcode, mode | 16, 0x12, 0x34, opcode, mode | 1, 0x56, 0x78,
+                         opcode, mode | 17, 0xff, 0xfe])
+for instruction, encoding in [
+        ('ldw y,0x1234', '55 16 12 34'), ('stw y,(0x1234)', 'd6 07 12 34'),
+        ('ldw z,-300(s)', '55 b9 fe d4'), ('stw z,-300(s)', 'd6 b9 fe d4'),
+        ('inr (0x5678)', '30 10 56 78'), ('dcr (s),2', '31 b1 00 00'),
+        ('push xh,zl', '7e 45'), ('pop zh,zl', '7f 81'), ('push bl,bl', '7e 30'),
+        ('jmp @(b)', '75 24'), ('lda @-2(x+)', '95 4d fe'), ('ldb @(0x5678)', 'd2 56 78')]:
+    lines.append(instruction)
+    expected.extend(bytes.fromhex(encoding))
 source.write_text('\n'.join(lines) + '\n')
 subprocess.run([assembler, '-o', obj, source], check=True)
 subprocess.run([linker, '-b', '-C', '0', '-o', binary, obj], check=True)
@@ -63,10 +79,11 @@ assert data == (b'\x77\x32' + address.to_bytes(2, 'big') +
 fixups = reloc.read_bytes()
 assert {int.from_bytes(fixups[i+1:i+3], 'big') for i in range(0, len(fixups), 3)} == {0x2002, 0x2006, 0x200a}
 for index, bad in enumerate(['mul al,b', 'div a,bl', 'mul (al),b', 'mul a,(x)',
+                             'ldw a,b', 'stw z,0x1234', '.setcpu 4\nldw x,(0x1234)',
                              'div a,b,x', 'mul 7,7', '.setcpu 4\nmul a,b']):
     source.write_text('.setcpu 6\n.code\n' + bad + '\n')
     result = subprocess.run([assembler, '-o', obj, source], capture_output=True, text=True)
     (work / f'invalid{index}.log').write_text(result.stdout + result.stderr)
     assert result.returncode, f'accepted invalid input: {bad}'
-print('PASS: 512 raw encodings, 48 aliases, relocations and invalid operands')
+print('PASS: native arithmetic, word loads/stores, register ranges, indirection, relocations and invalid operands')
 print('Results:', work)

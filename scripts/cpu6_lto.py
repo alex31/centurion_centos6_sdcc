@@ -13,14 +13,15 @@ TOKEN = re.compile(r'[A-Za-z_?][A-Za-z_?0-9]*')
 BEGIN = re.compile(r'^; CPU6 function (\S+) begin$')
 END = re.compile(r'^; CPU6 function (\S+) end$')
 ABI = re.compile(r'^; CPU6 ABI (\w+) frame=(\d+) saved=(\d+) variadic=(\d+) asm=(\d+)$')
-BRANCHES = {'bz': 'bnz', 'bnz': 'bz', 'bm': 'bp', 'bp': 'bm',
-            'bgz': 'ble', 'ble': 'bgz',
-            'bl': 'bnl', 'bnl': 'bl', 'bf': 'bnf', 'bnf': 'bf'}
+# EE200's relaxable aliases are paired by opcode (0x10 through 0x19).
+BRANCHES = {'bl': 'jc', 'bnl': 'jcc', 'bf': 'jn', 'bnf': 'jnc', 'bz': 'jz',
+            'bnz': 'jnz', 'bm': 'jlt', 'bp': 'jge', 'bgz': 'jle', 'ble': 'jgt'}
+CONDITIONAL = set(BRANCHES) | set(BRANCHES.values())
 SAFE = set('lda ldb ldx ldw sta stb stx stw ldab ldbb stab stbb xfr xfrb xab xax xay xaz '
            'cla clr clrb iva ivr ivrb ina inx dca dcx inr inrb dcr dcrb '
            'aab sab nab add sub and ori ore addb subb andb orib oreb '
            'slr srr rlr rrr slrb srrb rlrb rrrb sla sra sl rl sf rf nop '
-           'mul div push pop jmp bra jsr .byte'.split()) | BRANCHES.keys()
+           'mul div push pop jmp bra jsr .byte'.split()) | CONDITIONAL
 
 
 def instruction(line):
@@ -71,7 +72,7 @@ def candidate(function, private):
     except ValueError:
         return None, 'missing entry label'
     lines = [line for line in function.lines[entry + 1:] if line and not line.startswith(';')]
-    if not lines or len(lines) < 3:
+    if len(lines) < 3:
         return None, 'unrecognized prologue'
     first_op = instruction(lines[0])
     last_ops = [instruction(line) for line in lines[-2:]]
@@ -93,7 +94,7 @@ def candidate(function, private):
             continue
         if op not in SAFE:
             return None, 'directive or unsupported instruction'
-        if (op in BRANCHES or op in ('jmp', 'bra')) and args not in labels:
+        if (op in CONDITIONAL or op in ('jmp', 'bra')) and args not in labels:
             return None, 'external or indirect branch'
         if set(TOKEN.findall(args)) & (private - labels):
             return None, 'reference to translation-unit private data'
@@ -103,7 +104,9 @@ def candidate(function, private):
         stripped = re.sub(r'(?<![\w])(?:[4-9]|[1-9][0-9]+)\(s\)', '', args)
         if 's' in TOKEN.findall(stripped) or re.search(r'\bs[lh]\b', args):
             compact = False
-        if op in ('jsr', '.byte'):
+        # Register-range pushes can put saved registers at apparent argument
+        # offsets. Only rebase offsets when S stays fixed throughout the body.
+        if op in ('jsr', '.byte', 'push', 'pop'):
             compact = False
         if op in ('mul', 'div'):
             operands = [part.strip() for part in args.split(',')]
@@ -118,44 +121,40 @@ def size_bound(line):
     op, args = instruction(line)
     if not op:
         return 0
-    if op in BRANCHES or op == 'bra':
-        return 2
-    if op in ('jmp', 'jsr'):
+    if op in CONDITIONAL:
+        return 5  # inverted condition over an absolute jump
+    if op in ('bra', 'jmp', 'jsr'):
         return 3
+    if op in ('ldab', 'ldbb', 'stab', 'stbb', 'lda', 'ldb', 'ldx', 'sta', 'stb', 'stx'):
+        return 3
+    if op in ('push', 'pop', 'xfr', 'xfrb'):
+        return 2
+    if op in ('aab', 'sab', 'nab', 'xab', 'xax', 'xay', 'xaz', 'cla', 'iva',
+              'ina', 'inx', 'dca', 'dcx', 'sla', 'sra', 'sl', 'rl', 'sf', 'rf', 'nop', 'rsr'):
+        return 1
     if op == '.byte':
         return len(args.split(','))
     if op == '.word':
         return 2 * len(args.split(','))
-    return 4 if op in SAFE or op == 'rsr' else 65536
+    return 4 if op in SAFE else 65536
 
 
-def relax(lines, fresh):
-    # Relaxation only grows instructions. Repeat until all surviving short
-    # branches fit even under conservative instruction-size bounds.
-    while True:
-        positions, labels, pos = [], {}, 0
-        for line in lines:
-            positions.append(pos)
-            if line.endswith(':'):
-                labels[line[:-1]] = pos
-            pos += size_bound(line)
-        output, changed = [], False
-        for index, line in enumerate(lines):
-            op, target = instruction(line)
-            if op == 'bra' or op in BRANCHES:
-                distance = labels.get(target, 1 << 30) - positions[index] - 2
-                if not -128 <= distance <= 127:
-                    changed = True
-                    if op == 'bra':
-                        output.append('\tjmp ' + target)
-                    else:
-                        label = fresh()
-                        output += ['\t' + BRANCHES[op] + ' ' + label, '\tjmp ' + target, label + ':']
-                    continue
-            output.append(line)
-        lines = output
-        if not changed:
-            return lines
+def relax(lines):
+    # BRA already relaxes in the assembler. Keep raw short conditionals when
+    # they fit even if every intervening branch takes its longest encoding.
+    positions, labels, pos = [], {}, 0
+    for line in lines:
+        positions.append(pos)
+        if line.endswith(':'):
+            labels[line[:-1]] = pos
+        pos += size_bound(line)
+    for index, line in enumerate(lines):
+        op, target = instruction(line)
+        if op in BRANCHES:
+            distance = labels.get(target, 1 << 30) - positions[index] - 2
+            if not -128 <= distance <= 127:
+                lines[index] = '\t' + BRANCHES[op] + ' ' + target
+    return lines
 
 
 def optimize(paths, report_path, no_inline=()):
@@ -238,7 +237,7 @@ def optimize(paths, report_path, no_inline=()):
                                 'calleeUnit': callee.unit, 'instructions': cost, 'preserveX': preserve_x,
                                 'mode': mode})
             if sites:
-                replacements[caller.start] = (caller.stop, relax(output, fresh))
+                replacements[caller.start] = (caller.stop, relax(output))
         if replacements:
             output, index = [], 0
             while index < len(units[unit]):

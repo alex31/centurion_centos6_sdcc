@@ -13,6 +13,18 @@ const array = '100 DIM M(5)';
 const loop = '530 FOR L=1 TO 5';
 const next = '540 NEXT L';
 const benchmarks = {
+    INTBITS: {
+        body: ['100 DEFINT I,J', '400 FOR I=1 TO 1000',
+               '500 J=-(((NOT I) AND 15) OR 32)', '600 NEXT I'],
+        variables: ['I', 'J'],
+        expected: [1001, -39],
+    },
+    REALCOPY: {
+        body: ['100 DEFINT I', '400 FOR I=1 TO 1000',
+               '500 A=1.5:B=A:C=B:D=C', '600 NEXT I'],
+        variables: ['I', 'D'],
+        expected: [1001, 1.5],
+    },
     BM1: {
         body: ['400 FOR K=1 TO 1000', '500 NEXT K'],
         expected: [1001],
@@ -74,7 +86,7 @@ const benchmarks = {
 
 async function main() {
     const [image, report, selection = 'BM1,BM2'] = process.argv.slice(2);
-    assert.ok(image, 'Usage: basic-benchmark.js IMAGE [REPORT] [BM1,BM2,...|all|AHL]');
+    assert.ok(image, 'Usage: basic-benchmark.js IMAGE [REPORT] [comma-separated names, or all for the BM series]');
     const selected = selection === 'all' ? Object.keys(benchmarks).filter(name => name.startsWith('BM')) :
         selection.split(',');
     assert.ok(selected.every(name => Object.hasOwn(benchmarks, name)), 'Unknown BASIC benchmark');
