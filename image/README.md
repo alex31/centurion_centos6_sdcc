@@ -41,6 +41,7 @@ automatically when called without an image argument. At `D=`, click
 | `BASIC` | Start Stefan BASIC. Use `.LOAD "LIFE1D"`, then `.RUN`, for the integer Life example |
 | `.RUN SDCC.XSIEVE` | SDCC-compiled prime sieve |
 | `.RUN SDCC.XCONNECT4` | Connect Four |
+| `.RUN SDCC.XCHOMP` | Chomp against the computer on boards from 1 × 1 through 9 × 9 |
 | `.RUN SDCC.XCHESS` | Chess |
 | `.RUN SDCC.XLIFE1D` | One-dimensional Life in C |
 | `.RUN SDCC.XKERMIT` | E-Kermit receiver for CRT1 |
@@ -62,7 +63,7 @@ to C cases in `tests.md`. The device-independent tools under `tests/` run
 the raw CPU6 binaries separately on the C and JavaScript cores.
 
 The disk builder checks BASIC, runs XSIEVE and checks the test job output
-before publishing the image. It plays Connect Four and chess under CENTOS
+before publishing the image. It plays Chomp, Connect Four and chess under CENTOS
 and checks the resulting boards through the emulator's VT100 screen model.
 Chess updates only the squares changed by a move, including captures,
 en passant and castling. Run `make tests-games` to repeat the game checks.

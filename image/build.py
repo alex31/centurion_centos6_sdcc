@@ -33,11 +33,14 @@ def ensure_seed(seed):
 def build_programs(work):
     examples = ROOT / 'image/programs'
     chess = examples / 'chess'
+    chomp = examples / 'chomp'
     connect4 = examples / 'connect4'
     sieve = examples / 'sieve'
     life = examples / 'life1d'
     engine = ROOT / 'swext/mcu-max/src'
     kermit = ROOT / 'swext/ekermit'
+    subprocess.run([sys.executable, chomp / 'chomp_table.py', work / 'chomp_table.h'],
+                   check=True, cwd=ROOT)
     programs = {
         'XCHESS': [
             '--stack-size', '4096', '-DMCUMAX_GAME', '-I', engine,
@@ -45,6 +48,7 @@ def build_programs(work):
             engine / 'mcu-max.c', connect4 / 'os6_clock.s',
         ],
         'XCONNECT4': [connect4 / 'connect4.c', connect4 / 'game.c', connect4 / 'os6_clock.s'],
+        'XCHOMP': ['-I', work, chomp / 'chomp.c'],
         'XSIEVE': [sieve / 'sieve_optimise.c', sieve / 'clock.s'],
         'XKERMIT': [
             '-DNO_AT', '-DNO_CTRLC', '-DNO_SSW', '-DNO_SCAN', '-DOBUFLEN=256',

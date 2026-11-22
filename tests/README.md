@@ -11,7 +11,7 @@ Tests that run the JavaScript core use the
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
 | `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
 | `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Install and run a compiled program in a new CENTOS disk copy and confirm return to the shell |
-| `make tests-games` | Play Connect Four and chess from the generated application image and check the VT100 screen after moves. Set `APP_IMAGE` to test a different image |
+| `make tests-games` | Play Chomp, Connect Four and chess from the generated application image and check the VT100 screen after moves. Set `APP_IMAGE` to test a different image |
 | `make tests-finch` | Format a scratch Finch track, read and replace a sector, and verify that adjacent data is preserved on the microcoded simulator |
 | `make bench-basic` | Run the Rugg/Feldman BM1 and BM2 BASIC benchmarks at the nominal 5 MHz CPU6 rate. Set `APP_IMAGE` to test a different image |
 

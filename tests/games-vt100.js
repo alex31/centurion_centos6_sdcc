@@ -5,6 +5,7 @@ const {OS6Session} = require('../scripts/os6-session.js');
 const {CenturionCRT, A_REVERSE} = require('../build/out/emulator/server/src/terminal/crt.js');
 
 const CONNECT_PROMPT = 'Column (1-7), or Q to quit: ';
+const CHOMP_PROMPT = 'Your move (ROW COLUMN, or Q to quit): ';
 const CHESS_MENU = '(W/B/2/Q): ';
 const CHESS_PROMPT = '\x1b[K> ';
 const CHESS_OPENING = [
@@ -60,6 +61,28 @@ async function checkGames(image) {
 
     try {
         await session.boot();
+        const directoryPage = /\(MORE\)|\nAVAILABLE:[^\n]*\n/;
+        let page = await enter('.DIR SDCC. 1', directoryPage);
+        let directory = page;
+        while (page.includes('(MORE)')) {
+            page = await enter('', directoryPage);
+            directory += page;
+        }
+        assert.match(directory, /^XCHOMP\s+E\b/m);
+
+        await enter('.RUN SDCC.XCHOMP', 'Number of rows (1-9): ');
+        await enter('3', 'Number of columns (1-9): ');
+        await enter('3', 'Who starts (1 = you, 2 = computer)? ');
+        const initialChomp = await enter('1', CHOMP_PROMPT);
+        assert.match(initialChomp, /^1   P \* \*/m);
+        assert.match(await enter('9:9', CHOMP_PROMPT), /outside the remaining board/);
+        const chompMove = await enter('1 2', CHOMP_PROMPT);
+        assert.match(chompMove, /Computer takes row 2, column 1/);
+        assert.match(chompMove, /^3   \. \. \./m);
+        await enter('11', 'You took the poisoned square. Computer wins.');
+        await enter('.STA', 'STATUS DISPLAY');
+        console.log('PASS: XCHOMP is listed in SDCC and plays to completion on the VT100.');
+
         await enter('.RUN SDCC.XCONNECT4', CONNECT_PROMPT);
         assert.match(rowText(1), /^CONNECT FOUR/);
         await enter('0', CONNECT_PROMPT);
