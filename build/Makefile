@@ -25,8 +25,8 @@ basic: toolchain
 	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/build.py" --commands --vm-math --profile speed --stack-size 1536 --memory 5632 -o "$(OUT)/basic/BASIC.exf"
 
 basic-image: basic emulator
-	$(PYTHON) "$(ROOT)/swext/stefan-basic/centos/install.py" "$(OUT)/basic" --seed "$(SEED)" \
-		--example "LIFE1D=$(ROOT)/image/programs/life1d/life1d.bas" -o "$(OUT)/basic/centos-basic.img"
+	git -C "$(ROOT)" submodule update --init -- swext/101-basic-games
+	$(PYTHON) "$(ROOT)/image/install-basic.py" "$(OUT)/basic" --seed "$(SEED)" -o "$(OUT)/basic/centos-basic.img"
 
 clean:
 	rm -rf -- "$(OUT)"

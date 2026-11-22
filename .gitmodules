@@ -39,3 +39,6 @@
 	url = https://github.com/alex31/centurion-ekermit.git
 	branch = centurion
 	shallow = true
+[submodule "swext/101-basic-games"]
+	path = swext/101-basic-games
+	url = https://github.com/maurymarkowitz/101-BASIC-Computer-Games.git

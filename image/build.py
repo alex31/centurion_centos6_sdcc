@@ -117,8 +117,8 @@ def main():
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
         '--library', 'SDCC', '--job', f'RUNTESTS={job}', '-o', programs_image)
     final_image = work / 'centos-apps.img'
-    run(sys.executable, BASIC / 'install.py', basic_artifacts, '--seed', programs_image,
-        '--example', f'LIFE1D={ROOT / "image/programs/life1d/life1d.bas"}', '--check-games', '-o', final_image)
+    run(sys.executable, ROOT / 'image/install-basic.py', basic_artifacts,
+        '--seed', programs_image, '--check-games', '-o', final_image)
     run(sys.executable, ROOT / 'tests/basic-capacity.py', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')

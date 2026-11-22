@@ -55,6 +55,38 @@ run/centurion-system build/out/basic/centos-basic.img
 - `.LOAD` and `.SAVE` read and write native CENTOS text in `SBASIC`.
   Newly saved programs use the image's preallocated file slots.
 
+## 101 BASIC Computer Games
+
+The image includes 11 ports from David H. Ahl's 1975 DEC collection.
+Run `BASIC` from CENTOS, then use `.LOAD "G23MTCH"` and `.RUN`.
+Use these names to load other ports.
+
+| Name | Program |
+| --- | --- |
+| `G23MTCH` | 23 Matches |
+| `CHEMST` | Chemist |
+| `CHIEF` | Chief |
+| `DICE` | Dice |
+| `HILO` | Hi-Lo |
+| `HURKLE` | Hurkle |
+| `LETTER` | Letter |
+| `NICOMA` | Nicomachus |
+| `ROCKSP` | Rock, Scissors, Paper |
+| `STARS` | Stars |
+| `TRAIN` | Train |
+
+Hurkle takes the two coordinates at separate prompts. Chief draws its
+picture with spaces and printable characters on the VT100. Use Ctrl+C
+to return to CENTOS from games that keep offering another round.
+
+At the CENTOS prompt, `.DIR BAS101. 1` lists all 108 original source
+files. Press Enter at each `(MORE)` prompt. CENTOS filenames use
+uppercase, drop hyphens, and add a leading
+`G` to names starting with a digit. The original listings use several
+BASIC dialects, including instructions and array layouts outside the
+Stefan BASIC port's current support. BUNNY and SNOOPY appear in the book
+but have no listings in this archive. [Upstream catalog and transcription notes](https://github.com/maurymarkowitz/101-BASIC-Computer-Games)
+
 ## Performance
 
 ### One-dimensional Life

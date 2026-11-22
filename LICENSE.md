@@ -12,6 +12,7 @@ own license terms and copyright notices.
 | C instruction emulator | [GPLv3 license](swext/centurion-c/LICENCE) and file-specific notices |
 | JavaScript emulator | [CenRE License](swext/centurion-js/LICENSE.txt) and [NOTICE](swext/centurion-js/NOTICE.md) |
 | Stefan BASIC | [Upstream LICENSE](swext/stefan-basic/LICENSE), source notices and the [GPLv3 text](swext/stefan-basic/COPYING.GPL-3) |
+| 101 BASIC Computer Games listings | [Upstream catalog and attribution](swext/101-basic-games/README.md) and listing-specific credits |
 | mcu-max | [MIT license](swext/mcu-max/LICENSE) |
 | E-Kermit | [Revised three-clause BSD license](swext/ekermit/COPYING) |
 | Historical EE200 assembly runtime (optional checkout) | [Upstream notice](https://github.com/EtchedPixels/Fuzix-Compiler-Kit#licence) and [source provenance](doc/sources.md) |

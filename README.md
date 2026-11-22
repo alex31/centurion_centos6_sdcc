@@ -78,6 +78,9 @@ In BASIC, use `.LOAD "LIFE1D"` and then `.RUN`. At the CENTOS prompt,
 `.DIR SDCC. 1` lists the C applications, and `RUNTESTS` runs the compiler
 regressions installed on disk. [Application image guide](image/README.md)
 
+In BASIC, `.LOAD "G23MTCH"` and `.RUN` start 23 Matches from David H.
+Ahl's collection. [Other BASIC games and original listings](doc/basic.md#101-basic-computer-games)
+
 The web console provides both CRTs, CPU controls, **Load image**,
 **Save image**, **Stop server**, and a choice of nominal 5 MHz or maximum
 speed. Save the image before stopping the server to keep disk changes.
@@ -133,6 +136,7 @@ These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.
 | CenRE and the Centurion JavaScript server | Modified emulator derived from Meisaka Yukara's CenRE and the server adaptation by billsargent | [Centurion JavaScript emulator](https://github.com/billsargent/centurion) |
 | Centurion C emulator | Independent instruction core used by compiler tests | [EtchedPixels/Centurion](https://github.com/EtchedPixels/Centurion) |
 | Stefan's BASIC | POSIX interpreter used as the base for the CENTOS application | [slviajero/tinybasic](https://github.com/slviajero/tinybasic) |
+| 101 BASIC Computer Games | Listings collected by David H. Ahl and transcribed by Maury Markowitz and contributors | [maurymarkowitz/101-BASIC-Computer-Games](https://github.com/maurymarkowitz/101-BASIC-Computer-Games) |
 | mcu-max and micro-Max | Chess engine on the application image | [mcu-max](https://github.com/Gissio/mcu-max) · [H. G. Muller's micro-Max](https://home.hccnet.nl/h.g.muller/max-src2.html) |
 | E-Kermit | File-transfer protocol used by the CENTOS receiver | [Frank da Cruz's E-Kermit](https://www.kermitproject.org/ek.html) |
 | TypeScript and ws | Emulator build and WebSocket server | [TypeScript](https://github.com/microsoft/TypeScript) · [ws](https://github.com/websockets/ws) |
