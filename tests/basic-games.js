@@ -14,6 +14,8 @@ const games = {
     CHANGE: [['1', '10'], /YOUR CHANGE, \$9[\s\S]*1 FIVE DOLLAR[\s\S]*4 ONE DOLLAR/],
     CHEMST: [['-1'], /KRYPTOCYANIC ACID[\s\S]*QUIVERING PROTOPLASM/],
     CHIEF: [['YES', '7', 'NO', '8', 'NO'], /I HOPE YOU BELIEVE ME NOW/],
+    CHOMP: [['1', '2', '3', '3', '2', '2', '1', '1', '0'],
+        /PLAYER 1[\s\S]*^2      \* +\r?$[\s\S]*YOU LOSE, PLAYER 2/m],
     DIAMND: [['31'], /^\s*DEC +\r?$/m],
     DICE: [['5', 'NO'], /TOTAL SPOTS +NUMBER OF TIMES/],
     EVEN: [['0', '1'], /I PICK UP[\s\S]*NEXT MOVE/],
@@ -68,6 +70,8 @@ async function checkGames(image, names) {
             if (name === 'G3DPLOT') {
                 const plotted = transcript.split(/\r?\n/).filter(row => /^ +\*/.test(row));
                 assert.equal(plotted.length, 41);
+                assert.ok(plotted.every(row => row.length <= 80));
+                assert.deepEqual(plotted, [...plotted].reverse());
             }
             if (name === 'DIAMND') {
                 const plotted = transcript.split(/\r?\n/).filter(row => /^ *DEC +$/.test(row));

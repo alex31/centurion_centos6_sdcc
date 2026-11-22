@@ -26,6 +26,27 @@ PORTS = {
     },
     'chemst': {},
     'chief': {},
+    'chomp': {
+        90: 'DEFINT A',
+        95: 'DIM A(99)',
+        350: 'REM',
+        375: 'A((I-1)*10+J-1)=0',
+        400: 'INPUT P:IF P<1 OR P<>INT(P) THEN 390',
+        440: 'IF R>=1 AND R<=9 AND R=INT(R) THEN 470',
+        490: 'IF C>=1 AND C<=9 AND C=INT(C) THEN 530',
+        560: 'A((I-1)*10+J-1)=1',
+        590: 'A(0)=-1',
+        620: 'PRINT "       1 2 3 4 5 6 7 8 9"',
+        640: 'PRINT I;"      ";',
+        660: 'IF A((I-1)*10+J-1)=-1 THEN 700',
+        670: 'IF A((I-1)*10+J-1)=0 THEN 710',
+        830: 'PRINT "COORDINATES OF CHOMP (ROW THEN COLUMN)";',
+        840: 'INPUT R1:INPUT C1',
+        845: 'IF R1<>INT(R1) OR C1<>INT(C1) THEN 920',
+        890: 'IF A((R1-1)*10+C1-1)=0 THEN 920',
+        900: 'IF A((R1-1)*10+C1-1)=-1 THEN 1010',
+        960: 'A((I-1)*10+J-1)=0',
+    },
     'diamnd': {
         5: 'INPUT R:PRINT:IF R<5 OR R>31 OR R MOD 2<>1 THEN 3',
         25: f'PRINT LEFT$({BLANKS},(R-N)/2);',
@@ -83,6 +104,7 @@ PORTS = {
 
 QUOTED = re.compile(r'("[^"]*")')
 VARIABLES = {
+    'chomp': {'I1': 'T', 'P1': 'N', 'R1': 'X', 'C1': 'Y'},
     'even': {'A1': 'A', 'M1': 'B', 'Y1': 'D'},
     'hmrabi': {'D1': 'F', 'P1': 'G'},
     'mathd': {'T1': 'B', 'T2': 'C'},

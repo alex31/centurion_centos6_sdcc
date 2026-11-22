@@ -6,7 +6,7 @@ originals, 31 were refused during loading, 76 reported a BASIC error during
 launch, and `banner` aborted in CENTOS. BUNNY and SNOOPY have no source files
 in the pinned collection. [Upstream listings and notes](https://github.com/maurymarkowitz/101-BASIC-Computer-Games/tree/45f75052be3f436f2e575f58d4aa611484268227)
 
-The distribution installs 23 ports in `SBASIC` after checking an interaction
+The distribution installs 24 ports in `SBASIC` after checking an interaction
 or a complete plot in the emulator. The lists below stay available in the upstream
 submodule. The diagnostic column records the furthest trial, including experimental
 syntax normalization where it reached a later phase. The work column identifies the
@@ -52,7 +52,6 @@ operations and printer positioning need source adaptations.
 | `calndr.bas` | 130 · Unsupported statement or syntax | Translate inline apostrophe comments and computed branches. Verify weekdays and alignment. |
 | `canam.bas` | Refused at `.LOAD` | Measure tokenized size and isolate the first rejected record. Check the 5,632-byte arena before running. |
 | `checkr.bas` | 1000 · Unsupported statement or syntax | Flatten numeric matrices and check their RAM use. |
-| `chomp.bas` | 350 · Unsupported statement or syntax | Flatten numeric matrices and check their RAM use. |
 | `civilw.bas` | Refused at `.LOAD` | Measure tokenized size and isolate the first rejected record. Check the 5,632-byte arena before running. |
 | `craps.bas` | 216 · Unsupported statement or syntax | Translate the DEC conditional branches and verify fallthrough across statements. |
 | `cube.bas` | 1270 · Unsupported statement or syntax | Translate the DEC conditional branches and verify fallthrough across statements. |

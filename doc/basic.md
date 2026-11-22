@@ -57,7 +57,7 @@ run/centurion-system build/out/basic/centos-basic.img
 
 ## 101 BASIC Computer Games
 
-The image includes 23 tested ports from David H. Ahl's 1975 DEC collection.
+The image includes 24 tested ports from David H. Ahl's 1975 DEC collection.
 Run `BASIC` from CENTOS, then use `.LOAD "G23MTCH"` and `.RUN`.
 Use these names to load other ports.
 
@@ -69,6 +69,7 @@ Use these names to load other ports.
 | `CHANGE` | Change |
 | `CHEMST` | Chemist |
 | `CHIEF` | Chief |
+| `CHOMP` | Chomp |
 | `DIAMND` | Diamond |
 | `DICE` | Dice |
 | `EVEN` | Even Wins |
@@ -87,7 +88,7 @@ Use these names to load other ports.
 | `TRAIN` | Train |
 | `TRAP` | Trap |
 
-Hurkle and Trap take the two numbers at separate prompts. Chief, Diamond
+Chomp, Hurkle and Trap take the two numbers at separate prompts. Chief, Diamond
 and 3D Plot draw with printable characters and spaces on the VT100. Use
 Ctrl+C to return to CENTOS from games that keep offering another round.
 
