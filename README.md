@@ -23,6 +23,16 @@ git clone --recurse-submodules https://github.com/alex31/centurion_centos6_sdcc.
 cd centurion_centos6_sdcc
 ```
 
+Use GitHub credentials that can read this repository and its private
+submodules. For an existing checkout, synchronize the submodule URLs after
+pulling so Git can fetch the pinned revisions from the private copies.
+
+```sh
+git pull --no-recurse-submodules
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
 On Debian or Ubuntu, install the build dependencies and use Node.js 20 or
 newer with npm. In WSL2, keep the checkout in the Linux filesystem.
 
