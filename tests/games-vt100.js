@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const {OS6Session} = require('../scripts/os6-session.js');
-const {CenturionCRT, A_REVERSE} = require('../build/out/emulator/server/src/terminal/crt.js');
+const A_REVERSE = 0x1000; // Centurion CRT reverse-video attribute.
 
 const CONNECT_PROMPT = 'Column (1-7), or Q to quit: ';
 const CHOMP_PROMPT = 'Your move (ROW COLUMN, or Q to quit): ';
@@ -15,13 +15,7 @@ const CHESS_OPENING = [
 
 async function checkGames(image) {
     const session = new OS6Session(image);
-    const crt = new CenturionCRT();
-    const write = session.port.write_data.bind(session.port);
-    session.port.write_data = byte => {
-        crt.receive(byte & 127);
-        return write(byte);
-    };
-    const cell = (row, col) => String.fromCharCode(crt.getCell(col - 1, row - 1) & 127);
+    const cell = (row, col) => String.fromCharCode(session.cell(col - 1, row - 1) & 127);
     const rowText = row => Array.from({length: 80}, (_, i) => cell(row, i + 1)).join('');
 
     async function enter(command, prompt) {
@@ -40,7 +34,7 @@ async function checkGames(image) {
         for (let rank = 0; rank < 8; rank++) {
             for (let file = 0; file < 8; file++) {
                 const piece = board[flipped ? 7 - rank : rank][flipped ? 7 - file : file];
-                const value = crt.getCell(5 + 4 * file, 4 + 2 * rank);
+                const value = session.cell(5 + 4 * file, 4 + 2 * rank);
                 assert.equal(String.fromCharCode(value & 127), piece,
                     `Chess board row ${rank + 1}, file ${file + 1}`);
                 assert.equal(Boolean(value & A_REVERSE), (rank + file) % 2 === 0);

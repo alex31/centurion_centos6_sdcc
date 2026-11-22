@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const {OS6Session} = require('../scripts/os6-session.js');
-const {CenturionCRT} = require('../build/out/emulator/server/src/terminal/crt.js');
 
 const ready = /\n> $/;
 const input = /\? $/;
@@ -37,12 +36,6 @@ const games = {
 
 async function checkGames(image, names) {
     const session = new OS6Session(image);
-    const crt = new CenturionCRT();
-    const write = session.port.write_data.bind(session.port);
-    session.port.write_data = byte => {
-        crt.receive(byte & 127);
-        return write(byte);
-    };
 
     async function enter(text, marker) {
         const from = session.output.length;
@@ -80,7 +73,7 @@ async function checkGames(image, names) {
             if (name === 'CHIEF') {
                 const rows = Array.from({length: 24}, (_, y) =>
                     Array.from({length: 80}, (_, x) =>
-                        String.fromCharCode(crt.getCell(x, y) & 127)).join(''));
+                        String.fromCharCode(session.cell(x, y) & 127)).join(''));
                 assert.ok(rows.some(row => /^ {10}\* *$/.test(row)), rows.join('\n'));
             }
             if (!ready.test(reply)) {

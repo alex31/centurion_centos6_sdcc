@@ -29,27 +29,16 @@ async function main() {
     assert.ok(image && /^[1-9]\d*$/.test(count), 'Usage: basic-life.js IMAGE [REPEATS] [REPORT]');
     const session = new OS6Session(image);
     const expected = expectedBoards();
-    const cpu = global.window.cpu;
-    const step = cpu.hsstep.bind(cpu);
-    const write = session.port.write_data.bind(session.port);
-    let measured, ticks = 0;
-    cpu.hsstep = () => {
-        if (measured) ticks++;
-        return step();
-    };
-    session.port.write_data = value => {
-        const result = write(value);
-        if (measured && (value & 127) === 10) {
-            const lineStart = session.output.lastIndexOf('\n', session.output.length - 2) + 1;
-            const line = session.output.slice(lineStart).replace(/\r?\n$/, '');
-            const row = line.match(/^(\|[ *]{69}\|) *$/);
-            if (line.trim() === '1D LIFE - B23/S24') measured.start = ticks;
-            if (row) {
-                measured.rows.push(row[1]);
-                measured.last = ticks;
-            }
+    let measured;
+    session.onLine = (text, cycle) => {
+        if (!measured) return;
+        const line = text.replace(/\r?\n$/, '');
+        const row = line.match(/^(\|[ *]{69}\|) *$/);
+        if (line.trim() === '1D LIFE - B23/S24') measured.start = cycle;
+        if (row) {
+            measured.rows.push(row[1]);
+            measured.last = cycle;
         }
-        return result;
     };
     async function command(text) {
         const from = session.output.length;

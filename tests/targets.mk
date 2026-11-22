@@ -5,7 +5,7 @@ TESTS := $(ROOT)/tests
 TEST_OUT := $(OUT)/tests
 C_EMULATOR := $(ROOT)/swext/centurion-c
 
-.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games tests-finch bench-basic
+.PHONY: check tests alltests test-c-emulator tests-centos tests-web tests-games tests-finch tests-emulator-cpp bench-basic
 
 test-c-emulator:
 	git -C "$(ROOT)" submodule update --init -- swext/centurion-c
@@ -41,6 +41,20 @@ tests-finch: sdk
 	@mkdir -p "$(TEST_OUT)" && work=$$(mktemp -d "$(TEST_OUT)/finch.XXXXXX") && \
 		"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/finch.c" -o "$$work/finch.bin" && \
 		node "$(TESTS)/finch.js" "$$work/finch.bin"
+
+# Run after generating the application image and building the JavaScript reference.
+tests-emulator-cpp: emulator-cpp
+	@mkdir -p "$(TEST_OUT)" && work=$$(mktemp -d "$(TEST_OUT)/emulator-cpp.XXXXXX") && \
+		trap 'rm -rf -- "$$work"' EXIT && \
+		firmware="$${CENTURION_FIRMWARE:-$(OUT)/emulator/firmware.json}" && \
+		spec="$(ROOT)/swext/centurion-js/src/firmware-spec.json" && \
+		"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/cmd-mmio.c" -o "$$work/cmd.bin" && \
+		"$(OUT)/emulator-cpp/cpp-peripherals-probe" "$$firmware" "$$spec" "$$work/cmd.bin" && \
+		"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/finch.c" -o "$$work/finch.bin" && \
+		$(PYTHON) "$(TESTS)/compare-finch.py" "$(OUT)/emulator-cpp/cpp-finch-probe" "$$firmware" "$$spec" "$$work/finch.bin"
+	$(PYTHON) "$(TESTS)/cpp-telnet.py" --image "$(APP_IMAGE)" --kermit --format-data
+	node "$(TESTS)/web-console.js" --native "$(APP_IMAGE)"
+	node "$(TESTS)/apps-image.js" "$(APP_IMAGE)" 44 --compare
 
 bench-basic: emulator
 	node "$(TESTS)/basic-benchmark.js" "$(APP_IMAGE)" "" "$(BASIC_BENCHMARKS)"

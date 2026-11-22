@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+server="$root/build/out/emulator-cpp/centurion-emulator"
+firmware="${CENTURION_FIRMWARE:-$root/build/out/emulator/firmware.json}"
+spec="$root/swext/centurion-js/src/firmware-spec.json"
+web="$root/swext/centurion-js/web"
+case "${1-}" in
+    -h|--help)
+        printf '%s\n' 'Usage: centurion-system-cpp [hawk-image]' \
+            'Web console at http://127.0.0.1:42646/' \
+            'Telnet control panel, CRT0, CRT1 and disk manager on ports 2323–2326.' \
+            'Raw serial connection to MUX 1 on port 2327.'
+        exit 0
+        ;;
+esac
+if [ "$#" -gt 1 ]; then
+    printf '%s\n' 'Usage: centurion-system-cpp [hawk-image]' >&2
+    exit 2
+fi
+if [ ! -x "$server" ]; then
+    printf '%s\n' 'Build the native emulator with make emulator-cpp.' >&2
+    exit 1
+fi
+if [ "$#" -eq 0 ] && [ -n "${CENTURION_DISK_IMAGE-}" ]; then
+    set -- "$CENTURION_DISK_IMAGE"
+elif [ "$#" -eq 0 ] && [ -r "$root/build/out/image/centos-apps.img" ]; then
+    set -- "$root/build/out/image/centos-apps.img"
+fi
+if [ "$#" -eq 0 ]; then
+    for image in "$root/build/out/disks/CENTOS_13.IMG" "$root/build/out/emulator/server/disks/CENTOS_13.IMG"; do
+        if [ -r "$image" ]; then
+            bytes=$(wc -c < "$image")
+            case "$bytes" in
+                5196800|6651904)
+                    set -- "$image"
+                    break
+                    ;;
+            esac
+        fi
+    done
+fi
+exec "$server" "$firmware" "$spec" "$web" "$@"

@@ -37,13 +37,18 @@ The GitHub URLs for the Centurion forks in `.gitmodules` are the intended destin
 submodules. The standard checkout skips the historical EE200 runtime. The
 optional import retains its upstream README and licensing notes.
 
-For the JavaScript emulator, publish `upstream-software` and
-`centurion-inputs`, and set `centurion-inputs` as the default branch. Both
-refs descend from the software snapshot with external firmware. The
-historical `upstream` and `centurion` refs retain the original firmware
-tables locally. Firmware packs and CENTOS seeds are supplied separately.
+Publish JavaScript emulator sources from the `upstream-software` lineage,
+with `centurion-inputs` as the default branch. The historical `upstream`
+and `centurion` refs contain the firmware tables and are local archives.
+Supply firmware packs and CENTOS seeds separately. Keep the downloaded
+firmware source, extracted ROMs and native build products derived from them
+in the local build directory.
 
-Publish each Centurion fork before the distribution repository.
+The C++ emulator is the `emulator` submodule. Its source history is available
+locally on `emulator-cpp` and is linked into the distribution history. The
+submodule fetches its pinned commit from the same remote as the distribution.
+
+Publish the other Centurion forks before the distribution repository.
 For the other components, push both the original branch named above and
 `centurion`. The SDCC clone is shallow
 at the original commit. Run `git -C swext/sdcc fetch --unshallow upstream master`

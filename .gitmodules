@@ -42,3 +42,6 @@
 [submodule "swext/101-basic-games"]
 	path = swext/101-basic-games
 	url = https://github.com/maurymarkowitz/101-BASIC-Computer-Games.git
+[submodule "emulator"]
+	path = emulator
+	url = ./

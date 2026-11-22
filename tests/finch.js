@@ -14,6 +14,10 @@ const machine = new CoreEmulator();
 const {cpu, bpl, io_ffc: controller} = global.window;
 assert.ok(controller, 'The simulator must load the microcoded Finch controller');
 const disk = new Uint8Array(FINCH_PLAT * 2);
+if (process.argv[4] === '--late-mount') {
+    machine.reset();
+    for (let cycle = 0; cycle < 107593; ++cycle) machine.step();
+}
 controller.unit_1.set_disk({
     type: 'finch', filename: 'scratch.ffi', stride: FINCH_TRACK,
     protect: false, data: disk, backing_data: disk.buffer,
@@ -42,5 +46,7 @@ const trackStart = FINCH_PLAT + FINCH_TRACK; // Head 1, cylinder 1.
 assert.ok(disk.subarray(trackStart, trackStart + FINCH_TRACK).includes(0xa5));
 assert.ok(disk.subarray(0, trackStart).every(byte => byte === 0));
 assert.ok(disk.subarray(trackStart + FINCH_TRACK).every(byte => byte === 0));
-console.log('PASS: Finch track format, sector read/write, and unchanged neighbouring data.');
+if (process.argv[3]) fs.writeFileSync(process.argv[3], disk);
+console.log('PASS: Finch track format, sector read/write, and unchanged neighbouring data. Microsteps',
+            cpu.executedMicrosteps);
 process.exit(0);

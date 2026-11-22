@@ -37,26 +37,40 @@ On Debian or Ubuntu, install the build dependencies and use Node.js 20 or
 newer with npm. In WSL2, keep the checkout in the Linux filesystem.
 
 ```sh
-sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3
+sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3 curl
 node --version
 npm --version
 ```
 
-Download the pinned upstream CenRE `src/cen.ts` for the importer. It contains
-the embedded firmware tables that the bundled emulator loads at runtime.
-[Download upstream cen.ts](https://raw.githubusercontent.com/billsargent/centurion/2bf355026e3f5d4ebdf51138088b9499ccb31b09/src/cen.ts)
+Download the pinned upstream CenRE `src/cen.ts` locally and extract its
+firmware tables. Keep the downloaded file, extracted ROMs and firmware-derived
+build products in `build/out/`, which Git ignores.
+
+```sh
+mkdir -p build/out/firmware-source
+curl -fL -o build/out/firmware-source/cen.ts \
+  https://raw.githubusercontent.com/billsargent/centurion/2bf355026e3f5d4ebdf51138088b9499ccb31b09/src/cen.ts
+python3 scripts/import-cenre-firmware.py build/out/firmware-source/cen.ts
+```
 
 Supply a 512-byte-stride `CENTOS_13.IMG` Hawk image. See the Centurion
 archive's instructions for obtaining a system image.
 [Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
 
-Import the firmware tables, then build the compilers, emulator, applications
-and bootable CENTOS image.
+Build the compilers, emulator, applications and bootable CENTOS image.
 
 ```sh
-python3 scripts/import-cenre-firmware.py /path/to/local/cen.ts
 ./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
 ```
+
+`dobuild` uses the native C++26 machine at maximum speed for disk allocation,
+image validation and guest tests. It uses Node.js to run the test scripts
+through the native binding. This requires GCC 15.2 and the Node-API headers.
+The Debian and Ubuntu package `libnode-dev` provides the headers for the
+distribution's Node.js package. Set `NODE_CPPFLAGS=-I/path/to/include/node`
+if your Node.js installation provides headers elsewhere. Use
+`CENTURION_OS6_BACKEND=javascript` with `dobuild` to run the same checks on
+the reference engine.
 
 The generated image is `build/out/image/centos-apps.img`. The firmware
 import writes `build/out/emulator/firmware.json` by default. To use another
@@ -97,6 +111,53 @@ speed. Save the image before stopping the server to keep disk changes.
 The server listens on loopback by default. On CRT0 over Telnet (port
 2324), enter `H1` at `D=`, press Enter to accept system disk 1, then
 enter the date (`MMDDYY`) and time (`HHMMSS`).
+
+### Native emulator
+
+Build the C++26 server with GCC 15.2 and the Boost headers. It uses the same
+firmware pack, disk images, browser page and default ports.
+
+```sh
+make -j4 emulator-cpp
+run/centurion-system-cpp
+```
+
+The build assembles the seven CPU ROMs from `build/out/emulator/firmware.json`
+into a local binary control store under `build/out/emulator-cpp/config/`.
+GCC reads that file with `#embed` and evaluates the `constexpr` microinstruction
+decoder to compile specialized microcycle handlers. The specialized objects
+and executable contain firmware-derived material and are local build products.
+
+Set `FIRMWARE_JSON=/absolute/path/to/pack.json` to specialize for another pack.
+At startup, the server compares every control-store byte to select the
+compiled handlers. Other microcode uses the runtime decoder. Both engines
+load the mapping ROM and peripheral firmware from the runtime pack and clock
+peripherals at the same points.
+
+Use `make emulator-cpp ARCHFLAGS= FIRMWARE_JSON=` for a portable build with
+only the generic engine. The default build tunes the binary for the local CPU.
+
+After the native build, `run/centurion-system` selects it automatically.
+Set `CENTURION_EMULATOR=javascript` to run the reference or
+`CENTURION_EMULATOR=cpp` to require the native build. Both launchers accept
+an explicit Hawk image path. On the native server, `CENTURION_TELNET_BASE`
+and `CENTURION_WEB_PORT` set alternate ports for running both servers side
+by side.
+
+On the Telnet control panel, `m` shows the microinstruction, ALU and
+sequencer stack. Use `g` to install or remove the diagnostic ROMs and
+`+` and `-` to change the diagnostic selector. To boot the diagnostic
+ROM from a halted panel, reset with `x`, check that the ROMs are on with `g`,
+enable sense switch 1 with `o`, then start with `r`.
+
+After building the JavaScript reference and the application image, run
+`make tests-emulator-cpp` to test the native peripherals, Telnet, Kermit
+and Web console and compare two CENTOS workloads at maximum speed.
+To run just the speed comparison:
+
+```sh
+node tests/apps-image.js build/out/image/centos-apps.img 44 --compare
+```
 
 ## Compiler targets
 

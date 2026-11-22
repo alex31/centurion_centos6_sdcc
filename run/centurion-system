@@ -6,8 +6,22 @@ case "${1-}" in
     -h|--help)
         printf '%s\n' 'Usage: centurion-system [disk-image]' \
             'Web console at http://127.0.0.1:42646/' \
-            'Telnet CRT0 is available at 127.0.0.1:2324.'
+            'Telnet CRT0 is available at 127.0.0.1:2324.' \
+            'CENTURION_EMULATOR=auto|cpp|javascript selects the backend.'
         exit 0
+        ;;
+esac
+case "${CENTURION_EMULATOR:-auto}" in
+    cpp) exec "$root/run/centurion-system-cpp" "$@" ;;
+    auto)
+        if [ -x "$root/build/out/emulator-cpp/centurion-emulator" ]; then
+            exec "$root/run/centurion-system-cpp" "$@"
+        fi
+        ;;
+    javascript) ;;
+    *)
+        printf '%s\n' 'CENTURION_EMULATOR must be auto, cpp or javascript.' >&2
+        exit 2
         ;;
 esac
 if [ "$#" -gt 1 ]; then
@@ -15,7 +29,7 @@ if [ "$#" -gt 1 ]; then
     exit 2
 fi
 if [ ! -f "$server" ]; then
-    printf '%s\n' 'Build the emulator first with make emulator.' >&2
+    printf '%s\n' 'Build the native emulator with make emulator-cpp or the JavaScript reference with make emulator.' >&2
     exit 1
 fi
 if [ "$#" -eq 1 ]; then
