@@ -79,7 +79,7 @@ In BASIC, use `.LOAD "LIFE1D"` and then `.RUN`. At the CENTOS prompt,
 regressions installed on disk. [Application image guide](image/README.md)
 
 In BASIC, `.LOAD "G23MTCH"` and `.RUN` start 23 Matches from David H.
-Ahl's collection. [Other BASIC games and original listings](doc/basic.md#101-basic-computer-games)
+Ahl's collection. [Tested BASIC games and porting status](doc/basic.md#101-basic-computer-games)
 
 The web console provides both CRTs, CPU controls, **Load image**,
 **Save image**, **Stop server**, and a choice of nominal 5 MHz or maximum

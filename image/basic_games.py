@@ -1,18 +1,49 @@
-"""Prepare the pinned 101 BASIC listings and the CENTOS-compatible ports."""
+"""Prepare the tested CENTOS ports from the pinned 101 BASIC listings."""
 from pathlib import Path
 import re
 
 UPSTREAM = Path(__file__).resolve().parents[1] / 'swext/101-basic-games'
-ARCHIVE = 'BAS101'
+BLANKS = '"' + ' ' * 80 + '"'
 
 # Work around differences in the original dialects and a few listing typos.
 # Line numbers refer to the pinned upstream listing.
 PORTS = {
     '23mtch': {},
+    '3dplot': {
+        5: 'REM',
+        130: 'W=5*INT(SQR(900-X*X)/5)',
+        140: 'FOR Y=W TO -W STEP -5',
+        150: 'P=SQR(X*X+Y*Y):Z=INT(25+30*EXP(-P*P/100)-.7*Y)',
+        170: f'PRINT LEFT$({BLANKS},Z-L-1);"*";',
+        180: 'L=Z',
+    },
+    'aceydu': {},
+    'change': {
+        20: 'C=P-A:M=C:IF C<>0 THEN 90',
+        21: 'PRINT "CORRECT AMOUNT, THANK YOU"',
+        90: 'IF C>0 THEN 120',
+        91: 'PRINT "SORRY, YOU HAVE SHORT CHANGED ME $";A-P',
+    },
     'chemst': {},
     'chief': {},
+    'diamnd': {
+        5: 'INPUT R:PRINT:IF R<5 OR R>31 OR R MOD 2<>1 THEN 3',
+        25: f'PRINT LEFT$({BLANKS},(R-N)/2);',
+        53: 'IF M=Q THEN 56',
+        55: f'PRINT LEFT$({BLANKS},R-N);',
+    },
     'dice': {},
+    'even': {20: 'REM'},
     'hi-lo': {180: 'Y=INT(100*RND)+1', 280: 'IF B<6 THEN 200'},
+    'hmrabi': {
+        228: 'P=INT(P/2)',
+        235: 'PRINT "YOU HARVESTED";Y;"BUSHELS PER ACRE."',
+        270: 'IF Z=11 THEN 860',
+        450: 'IF INT(D/2)<=S THEN 459',
+        451: 'REM',
+        459: 'IF D<=10*P THEN 510',
+        990: 'PRINT:PRINT CHR$(7);',
+    },
     'hurkle': {
         240: 'PRINT "PAIR OF WHOLE NUMBERS ENTERED SEPARATELY. TRY TO"',
         310: 'K=1',
@@ -23,7 +54,15 @@ PORTS = {
     'letter': {430: 'INPUT A$:IF LEN(A$)=0 THEN 410',
                435: 'A=ASC(A$):IF A>=97 AND A<=122 THEN A=A-32',
                436: 'PRINT', 510: 'PRINT CHR$(7);'},
+    'kinema': {110: 'V=5+INT(35*RND(1))', 508: 'PRINT "CORRECT! VERY GOOD!"'},
+    'litqz': {},
+    'mathd': {},
     'nicoma': {90: 'REM'},
+    'number': {
+        15: 'R=INT(5*RND(1))+1', 16: 'S=INT(5*RND(1))+1',
+        17: 'T=INT(5*RND(1))+1', 18: 'U=INT(5*RND(1))+1',
+        19: 'V=INT(5*RND(1))+1',
+    },
     'rocksp': {
         8: 'IF Q>=1 THEN 11',
         40: 'IF X=1 THEN 50',
@@ -35,11 +74,20 @@ PORTS = {
         141: 'GOTO 95',
         195: 'PRINT "AND";Q-(C+H);"GAME(S) ENDED IN A TIE."',
     },
+    'rusrou': {40: 'IF RND(1)>.83333 THEN 70'},
     'stars': {330: 'K=1', 530: 'K=K+1:IF K<=M THEN 340'},
     'train': {41: 'IF A<=0 THEN 35', 50: 'E=INT(ABS((V-A)*100)/A+.5)'},
+    'trap': {105: 'PRINT "ENTER THE TWO NUMBERS AT SEPARATE PROMPTS."',
+             190: 'Q=1', 220: 'INPUT A:INPUT B', 330: 'Q=Q+1:IF Q<=G THEN 200'},
 }
 
 QUOTED = re.compile(r'("[^"]*")')
+VARIABLES = {
+    'even': {'A1': 'A', 'M1': 'B', 'Y1': 'D'},
+    'hmrabi': {'D1': 'F', 'P1': 'G'},
+    'mathd': {'T1': 'B', 'T2': 'C'},
+}
+NUMBERED_VARIABLE = re.compile(r'(?<![.A-Z0-9])[A-Z][0-9]+\b')
 
 
 def centos_name(stem):
@@ -72,13 +120,17 @@ def print_separators(statement):
     return 'PRINT ' + ''.join(fields)
 
 
-def normalize(body):
+def normalize(body, aliases=None):
     if re.match(r'^REM\b', body):
         return body
     # Preserve quoted prompts exactly, including backslashes and punctuation.
     fragments = QUOTED.split(body)
     for index in range(0, len(fragments), 2):
         code = fragments[index]
+        if aliases:
+            code = NUMBERED_VARIABLE.sub(lambda match: aliases.get(match[0], match[0]), code)
+        if index + 1 < len(fragments):
+            code = re.sub(r'\bPRINT\s*$', 'PRINT ', code)
         code = re.sub(r'\s+//.*$', '', code)
         code = re.sub(r'\bGO\s+TO\b', 'GOTO', code)
         code = re.sub(r'\bRND(?:\(0\)|(?!\s*\())', 'RND(1)', code)
@@ -114,7 +166,7 @@ def normalize(body):
     return ':'.join(result)
 
 
-def port(source, edits):
+def port(source, edits, aliases=None):
     lines = {}
     for line in source.splitlines():
         if not line.strip():
@@ -125,25 +177,20 @@ def port(source, edits):
             raise ValueError(f'Duplicate BASIC line {number}')
         lines[number] = body
     lines.update(edits)
-    return ''.join(f'{number} {normalize(lines[number])}\n' for number in sorted(lines))
+    return ''.join(f'{number} {normalize(lines[number], aliases)}\n' for number in sorted(lines))
 
 
 def prepare_games(work):
-    sources = sorted(UPSTREAM.glob('*.bas'))
-    if not sources:
+    if not UPSTREAM.is_dir():
         raise ValueError('Initialize the 101 BASIC Computer Games submodule first')
-    names = [centos_name(source.stem) for source in sources]
-    if len(set(names)) != len(names):
+    if len({centos_name(stem) for stem in PORTS}) != len(PORTS):
         raise ValueError('Duplicate native filename in the 101 BASIC catalog')
-    missing = set(PORTS) - {source.stem for source in sources}
-    if missing:
-        raise ValueError('Missing BASIC source for ' + ', '.join(sorted(missing)))
-    originals, playable = {}, {}
-    for name, source in zip(names, sources):
+    playable = {}
+    for stem, edits in sorted(PORTS.items()):
+        source = UPSTREAM / f'{stem}.bas'
+        name = centos_name(stem)
         listing = source.read_text(encoding='ascii')
-        originals[name] = listing
-        if source.stem in PORTS:
-            path = work / f'{name}.bas'
-            path.write_text(port(listing, PORTS[source.stem]), encoding='ascii')
-            playable[name] = path
-    return originals, playable
+        path = work / f'{name}.bas'
+        path.write_text(port(listing, edits, VARIABLES.get(stem)), encoding='ascii')
+        playable[name] = path
+    return playable

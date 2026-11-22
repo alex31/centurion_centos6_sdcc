@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Install Stefan BASIC and the 101 BASIC Computer Games collection."""
+"""Install Stefan BASIC and the tested 101 BASIC Computer Games ports."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -9,12 +8,10 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
-from basic_games import ARCHIVE, prepare_games
+from basic_games import prepare_games
 
 ROOT = Path(__file__).resolve().parents[1]
 BASIC = ROOT / 'swext/stefan-basic/centos'
-sys.path.insert(0, str(ROOT / 'scripts'))
-from centos_text import encode
 
 
 def install(directory, seed, output, check_games):
@@ -23,7 +20,7 @@ def install(directory, seed, output, check_games):
     output.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix='.basic-install-', dir=output.parent) as temporary:
         work = Path(temporary)
-        originals, playable = prepare_games(work)
+        playable = prepare_games(work)
         base = work / 'basic.img'
         example = ROOT / 'image/programs/life1d/life1d.bas'
         command = [sys.executable, BASIC / 'install.py', directory,
@@ -34,25 +31,16 @@ def install(directory, seed, output, check_games):
             command.extend(['--example', f'{name}={path}'])
         subprocess.run(command, check=True, cwd=ROOT)
 
-        archive = work / 'catalog.img'
-        command = [sys.executable, ROOT / 'scripts/install-os6-bundle.py',
-                   base, '--library', ARCHIVE, '-o', archive]
-        for name, source in originals.items():
-            path = work / f'{name}.txt'
-            path.write_bytes(encode(source))
-            command.extend(['--job', f'{ARCHIVE}.{name}={path}'])
-        subprocess.run(command, check=True, cwd=ROOT)
-        subprocess.run(['node', ROOT / 'tests/basic-games.js', archive, *playable],
+        subprocess.run(['node', ROOT / 'tests/basic-games.js', base, *playable],
                        check=True, cwd=ROOT)
 
         report = json.loads(base.with_suffix('.json').read_text())
-        report.update(image=str(output), imageSha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
-                      gameArchive=ARCHIVE, originalListings=list(originals), playableGames=list(playable))
+        report.update(image=str(output), playableGames=list(playable))
         pending = work / 'report.json'
         pending.write_text(json.dumps(report, indent=2) + '\n')
-        os.link(archive, output)
+        os.link(base, output)
         pending.replace(output.with_suffix('.json'))
-    print(f'Installed {len(originals)} listings in {ARCHIVE} and {len(playable)} tested ports in SBASIC')
+    print(f'Installed {len(playable)} tested ports in SBASIC')
 
 
 def main():

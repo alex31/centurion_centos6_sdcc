@@ -26,6 +26,9 @@ used by the headless build. The C emulator is built for testing. The BASIC impor
 sources used by the port. The Centurion forks document their changes in
 `CENTURION.md`. The games submodule points directly to the public upstream
 repository, with adaptations applied by the image builder.
+The local `centos-vt100` branch in `swext/101-basic-games` records
+the resulting listings under `centos/`. The Git submodule pins the public
+source revision so clean clones can reproduce the same adaptations.
 
 ## Publication status
 

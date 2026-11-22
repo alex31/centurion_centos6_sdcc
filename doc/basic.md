@@ -57,35 +57,42 @@ run/centurion-system build/out/basic/centos-basic.img
 
 ## 101 BASIC Computer Games
 
-The image includes 11 ports from David H. Ahl's 1975 DEC collection.
+The image includes 23 tested ports from David H. Ahl's 1975 DEC collection.
 Run `BASIC` from CENTOS, then use `.LOAD "G23MTCH"` and `.RUN`.
 Use these names to load other ports.
 
 | Name | Program |
 | --- | --- |
 | `G23MTCH` | 23 Matches |
+| `G3DPLOT` | 3D Plot |
+| `ACEYDU` | Acey Ducey |
+| `CHANGE` | Change |
 | `CHEMST` | Chemist |
 | `CHIEF` | Chief |
+| `DIAMND` | Diamond |
 | `DICE` | Dice |
+| `EVEN` | Even Wins |
 | `HILO` | Hi-Lo |
+| `HMRABI` | Hammurabi |
 | `HURKLE` | Hurkle |
+| `KINEMA` | Kinema |
 | `LETTER` | Letter |
+| `LITQZ` | Literature Quiz |
+| `MATHD` | Math Dice |
 | `NICOMA` | Nicomachus |
+| `NUMBER` | Number |
 | `ROCKSP` | Rock, Scissors, Paper |
+| `RUSROU` | Russian Roulette |
 | `STARS` | Stars |
 | `TRAIN` | Train |
+| `TRAP` | Trap |
 
-Hurkle takes the two coordinates at separate prompts. Chief draws its
-picture with spaces and printable characters on the VT100. Use Ctrl+C
-to return to CENTOS from games that keep offering another round.
+Hurkle and Trap take the two numbers at separate prompts. Chief, Diamond
+and 3D Plot draw with printable characters and spaces on the VT100. Use
+Ctrl+C to return to CENTOS from games that keep offering another round.
 
-At the CENTOS prompt, `.DIR BAS101. 1` lists all 108 original source
-files. Press Enter at each `(MORE)` prompt. CENTOS filenames use
-uppercase, drop hyphens, and add a leading
-`G` to names starting with a digit. The original listings use several
-BASIC dialects, including instructions and array layouts outside the
-Stefan BASIC port's current support. BUNNY and SNOOPY appear in the book
-but have no listings in this archive. [Upstream catalog and transcription notes](https://github.com/maurymarkowitz/101-BASIC-Computer-Games)
+Use `.DIR` in BASIC for the installed programs. The upstream submodule
+holds the original listings for further porting. [Audit and remaining ports](basic-games-porting.md)
 
 ## Performance
 
