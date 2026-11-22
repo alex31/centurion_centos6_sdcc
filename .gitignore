@@ -1,0 +1,7 @@
+/build/
+*.o
+*.d
+*.node
+*.rom
+*.img
+*.ffi
