@@ -35,6 +35,8 @@ run/centurion-system build/out/image/centos-apps.img
 `run/centurion-system` also selects the latest generated application image
 automatically when called without an image argument. At `D=`, click
 **Boot CENTOS**. On the standard ROM this prompt is on CRT0.
+In **Maximum speed** mode the status shows the measured speed relative to
+5 MHz after about one second of execution.
 
 | CENTOS command | Program |
 | --- | --- |

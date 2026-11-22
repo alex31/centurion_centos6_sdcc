@@ -118,8 +118,15 @@ async function checkConsolePage(html, script, image) {
     assert.ok(booted(), 'changing speed reset the guest');
     maximum.checked = true;
     await maximum.dispatch('change');
-    await waitFor(() => maximum.checked && !realtime.checked &&
-        page.id('connection').textContent === 'Running · Maximum speed', 'the maximum-speed radio option');
+    const speedStatus = /^Running · Maximum speed · \d+[.,]\d×$/;
+    const connection = page.id('connection');
+    await waitFor(() => maximum.checked && !realtime.checked && speedStatus.test(connection.textContent),
+        'the measured maximum-speed factor');
+    assert.ok(booted(), 'changing speed reset the guest');
+    await page.actions.get('pause').click();
+    await waitFor(() => connection.textContent === 'Paused', 'the paused status without a speed factor');
+    await page.actions.get('run').click();
+    await waitFor(() => speedStatus.test(connection.textContent), 'a fresh speed factor after resuming');
     for (const key of ['.', 'S', 'T', 'A', 'Enter']) page.press(0, key);
     await waitFor(() => /STATUS DISPLAY/.test(terminal.textContent) &&
         /SYSTEM DATE:\s*11\/19\/26/.test(terminal.textContent), 'the console keyboard and boot date');
@@ -231,9 +238,23 @@ async function main() {
     await waitFor(() => screen(state.terminals[1]).includes('CRT1 output'), 'CRT1 display');
     assert.doesNotMatch(screen(state.terminals[0]), /CRT1 output/);
 
+    const hasMeasuredSpeed = () => Number.isFinite(state.speedFactor) && state.speedFactor > 0;
+    await waitFor(hasMeasuredSpeed, 'a maximum-speed WebSocket sample');
+    assert.equal((await control('speed&mode=realtime')).status, 200);
+    await waitFor(() => state.speed === 'realtime' && state.speedFactor === null,
+        'the realtime transition to clear the maximum-speed measurement');
+    assert.equal((await control('speed&mode=maximum')).status, 200);
+    await waitFor(() => state.speed === 'maximum' && state.speedFactor === null,
+        'the maximum-speed transition to start an empty sample');
+    await waitFor(hasMeasuredSpeed, 'a new maximum-speed sample');
     assert.equal((await control('step')).status, 409);
     assert.equal((await control('pause')).status, 200);
-    await waitFor(() => !state.running, 'CPU pause');
+    await waitFor(() => !state.running && state.speedFactor === null, 'CPU pause to clear the speed factor');
+    assert.equal((await control('run')).status, 200);
+    await waitFor(() => state.running && state.speedFactor === null, 'CPU resume to start an empty sample');
+    await waitFor(hasMeasuredSpeed, 'an updated factor after CPU resume');
+    assert.equal((await control('pause')).status, 200);
+    await waitFor(() => !state.running, 'CPU pause for the single-step check');
     const pausedPC = state.pc;
     assert.equal((await control('speed&mode=invalid')).status, 400);
     assert.equal((await control('speed&mode=realtime')).status, 200);
@@ -294,7 +315,7 @@ async function main() {
         consolePage?.close();
         ws.close();
     }
-    console.log('PASS: web page, CPU controls and speed selection, both CRTs, disk round trip and server shutdown.');
+    console.log('PASS: web page, CPU controls and measured speed, both CRTs, disk round trip and server shutdown.');
 }
 
 main().then(() => process.exit(0), error => {
