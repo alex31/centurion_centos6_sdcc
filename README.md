@@ -16,34 +16,76 @@ projects and their authors are credited below.
 
 ## Build
 
-Clone the distribution and its pinned source dependencies.
+### Optional setup for Windows 11 with WSL2
+
+On a Windows 11 PC, use Ubuntu 24.04 in WSL2 to build and run Centurion.
+If WSL reports that hardware virtualization is disabled, enable it in the
+PC's UEFI settings.
+
+**In PowerShell**, run the following from an administrator window to install
+WSL and Ubuntu 24.04.
+
+```powershell
+wsl --install -d Ubuntu-24.04
+```
+
+Restart Windows if prompted. After signing back in, check the distribution
+and its WSL version.
+
+```powershell
+wsl -l -v
+```
+
+If `Ubuntu-24.04` is missing from the list, rerun the install command. If
+Ubuntu shows version `1`, convert it with `wsl --set-version Ubuntu-24.04 2`.
+Use the distribution name shown by `wsl -l -v` if it differs. Open Ubuntu
+from the Start menu or run `wsl -d Ubuntu-24.04`. Choose a Linux username and
+password at the first launch.
+[Microsoft WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install)
+
+**In Ubuntu**, prepare a directory in your Linux home for the checkout, then
+continue with the [shared build steps below](#shared-build-steps-for-linux-and-wsl2).
+Keeping the checkout and build output under `~/src` gives Linux tools faster
+file access. Use `/mnt/c` to copy inputs from Windows when needed.
+[Working across Windows and Linux file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)
+
+```sh
+mkdir -p "$HOME/src"
+cd "$HOME/src"
+```
+
+### Shared build steps for Linux and WSL2
+
+On Debian or Ubuntu, install the build dependencies in the Linux shell.
+
+```sh
+sudo apt update
+sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3 curl
+sudo apt install nodejs libnode-dev
+```
+
+The native build works with the GCC 13 and Node.js 18 packages on Ubuntu
+24.04. For the JavaScript emulator and `make sdk`, use Node.js 20 or newer
+with npm in the Linux shell. If your distribution ships an older version,
+install a current LTS release inside Linux and check `node --version` and
+`npm --version`. [Node.js downloads](https://nodejs.org/en/download)
+
+Clone the distribution and its pinned source dependencies. Use GitHub
+credentials with access to this repository and its private submodules.
 
 ```sh
 git clone --recurse-submodules https://github.com/alex31/centurion_centos6_sdcc.git
 cd centurion_centos6_sdcc
 ```
 
-Use GitHub credentials that can read this repository and its private
-submodules. For an existing checkout, synchronize the submodule URLs after
-pulling so Git can fetch the pinned revisions from the private copies.
+For an existing checkout, synchronize the submodule URLs after pulling so
+Git can fetch the pinned revisions from the private copies.
 
 ```sh
 git pull --no-recurse-submodules
 git submodule sync --recursive
 git submodule update --init --recursive
 ```
-
-On Debian or Ubuntu, install the build dependencies. In WSL2, keep the
-checkout in the Linux filesystem.
-
-```sh
-sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3 curl
-```
-
-On Ubuntu 24.04, the default native build works with the distribution's
-GCC 13 and Node.js 18. Install Node.js and its development headers with
-`sudo apt install nodejs libnode-dev`. The standalone JavaScript emulator
-and `make sdk` require Node.js 20 or newer with npm.
 
 Download the pinned upstream CenRE `src/cen.ts` locally and extract its
 firmware tables. Keep the downloaded file, extracted ROMs and firmware-derived
@@ -64,6 +106,16 @@ Build the compilers, emulator, applications and bootable CENTOS image.
 
 ```sh
 ./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
+```
+
+For example, to test the native build in WSL2 with a seed saved in Windows
+Downloads, run the following in Ubuntu from the project root after importing
+the firmware. Replace `YOUR_WINDOWS_USER` with your Windows username.
+
+```sh
+mkdir -p build/out/image
+cp "/mnt/c/Users/YOUR_WINDOWS_USER/Downloads/CENTOS_13.IMG" build/out/image/
+./dobuild -j4 JOBS=4 CENTURION_OS6_BACKEND=cpp SEED="$PWD/build/out/image/CENTOS_13.IMG"
 ```
 
 `dobuild` shows its five stages and a time estimate for a clean C++ build.
