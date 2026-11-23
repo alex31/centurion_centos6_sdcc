@@ -66,6 +66,10 @@ Build the compilers, emulator, applications and bootable CENTOS image.
 ./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
 ```
 
+`dobuild` shows its five stages and a time estimate for a clean C++ build.
+The terminal keeps the current stage visible below the build output. Log
+files and CI output show a plain-text message at each stage change.
+
 `dobuild` uses the native C++ machine at maximum speed for disk allocation,
 image validation and guest tests. It uses Node.js to run the test scripts
 through the native binding. This requires GCC 13 or newer and the Node-API headers.

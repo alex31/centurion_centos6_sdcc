@@ -14,9 +14,10 @@ DEFAULT_SEED = OUT / 'CENTOS_13.IMG'
 BASIC = ROOT / 'swext/stefan-basic/centos'
 SDK = ROOT / 'run/cpu6-os6-sdcc'
 DEFAULT_OUTPUT = OUT / 'centos-apps.img'
-sys.path[:0] = [str(ROOT / 'tests'), str(ROOT / 'scripts')]
+sys.path[:0] = [str(ROOT / 'tests'), str(ROOT / 'scripts'), str(ROOT / 'build')]
 from regression_cases import regression_cases
 from centos_text import encode
+from dobuild import announce
 SEED_BYTES = 6651904
 
 
@@ -111,18 +112,22 @@ def main():
     def run(*command):
         subprocess.run(command, check=True, cwd=ROOT, env=env)
 
+    announce(2)
     programs = build_programs(work)
     tests, job, test_count = build_tests(work)
     basic_artifacts = work / 'basic'
     run(sys.executable, BASIC / 'build.py', '--commands', '--vm-math', '--profile', 'speed',
         '--stack-size', '1536', '--memory', '5632',
         '-o', basic_artifacts / 'BASIC.exf')
+    announce(3)
     programs_image = work / 'programs.img'
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
         '--library', 'SDCC', '--job', f'RUNTESTS={job}', '-o', programs_image)
+    announce(4)
     final_image = work / 'centos-apps.img'
     run(sys.executable, ROOT / 'image/install-basic.py', basic_artifacts,
         '--seed', programs_image, '--check-games', '-o', final_image)
+    announce(5)
     run(sys.executable, ROOT / 'tests/basic-capacity.py', final_image)
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
