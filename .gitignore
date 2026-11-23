@@ -3,5 +3,6 @@
 *.d
 *.node
 *.rom
+cpu6-control-store.inc
 *.img
 *.ffi

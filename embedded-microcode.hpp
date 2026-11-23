@@ -4,24 +4,28 @@
 
 #include "microinstruction.hpp"
 
-#if __has_embed(<cpu6-control-store.rom>) == __STDC_EMBED_FOUND__
-#define CPU6_EMBEDDED 1
-#endif
-
 namespace centurion::detail
 {
+#ifdef CPU6_USE_EMBED
+#if __has_embed(<cpu6-control-store.rom>) == __STDC_EMBED_FOUND__
+#define CPU6_EMBEDDED 1
+inline constexpr std::uint8_t control_store_rom[] = {
+#embed <cpu6-control-store.rom>
+};
+#endif
+#else
+#include <cpu6-control-store.inc>
+#endif
+
 #ifdef CPU6_EMBEDDED
 consteval auto read_control_store()
 {
-    constexpr std::uint8_t rom[] = {
-#embed <cpu6-control-store.rom>
-    };
     std::array<MicroWord, 2048> store {};
     constexpr auto chips = std::tuple_size_v<MicroWord>;
-    static_assert(sizeof rom == std::tuple_size_v<decltype(store)> * chips);
+    static_assert(sizeof control_store_rom == std::tuple_size_v<decltype(store)> * chips);
     for (std::size_t address = 0; address < store.size(); ++address)
         for (std::size_t chip = 0; chip < chips; ++chip)
-            store[address][chip] = rom[address * chips + chip];
+            store[address][chip] = control_store_rom[address * chips + chip];
     return store;
 }
 inline constexpr auto embedded = read_control_store();

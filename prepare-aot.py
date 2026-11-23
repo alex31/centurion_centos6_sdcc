@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 from tempfile import NamedTemporaryFile
 
-directory, firmware, flags = sys.argv[1:]
+directory, firmware, flags, control_store_format = sys.argv[1:]
 out = Path(directory)
 out.mkdir(parents=True, exist_ok=True)
 
@@ -33,6 +33,16 @@ def cpu6_rom(path):
     return b''.join(bytes(word) for word in zip(*chips, strict=True))
 
 
+def cpp_rom(rom):
+    if not rom:
+        return b''
+    lines = ['#define CPU6_EMBEDDED 1', 'inline constexpr std::uint8_t control_store_rom[] = {']
+    for offset in range(0, len(rom), 7):
+        lines.append('    ' + ', '.join(f'0x{byte:02x}' for byte in rom[offset:offset + 7]) + ',')
+    lines.append('};\n')
+    return '\n'.join(lines).encode('ascii')
+
+
 rom = b''
 if firmware and (pack := Path(firmware)).is_file():
     try:
@@ -40,8 +50,9 @@ if firmware and (pack := Path(firmware)).is_file():
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f'{pack}: {error}. Building the generic CPU6 decoder.', file=sys.stderr)
 
-# An empty file selects the generic decoder and invalidates an earlier specialized build.
-update('cpu6-control-store.rom', rom)
+# Empty inputs select the generic decoder and invalidate an earlier specialized build.
+update('cpu6-control-store.rom', rom if control_store_format == 'embed' else b'')
+update('cpu6-control-store.inc', cpp_rom(rom) if control_store_format == 'include' else b'')
 update('build-flags', (flags + '\n').encode())
 # Extern instantiations prevent a direct jump from instantiating a second copy
 # of a handler belonging to another translation unit.

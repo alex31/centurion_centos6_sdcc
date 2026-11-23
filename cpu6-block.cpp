@@ -6,6 +6,12 @@
 #ifdef CPU6_EMBEDDED
 #include "cpu6-cycle.inl"
 
+#if __has_cpp_attribute(gnu::musttail)
+#define CPU6_TAIL_CALL [[gnu::musttail]]
+#else
+#define CPU6_TAIL_CALL
+#endif
+
 namespace centurion
 {
 #define CPU6_ADDRESS(n) extern template void CompiledCore::execute<n>(Cpu6&, std::uint64_t);
@@ -25,10 +31,10 @@ template <unsigned Address> void CompiledCore::execute(Cpu6& cpu, std::uint64_t 
         constexpr unsigned target = op.seq_d & 0x7ff;
         // A device can reset the CPU on the clock edge. Honor the latched PC.
         if (cpu.micro_pc_ == target) {
-            [[gnu::musttail]] return execute<target>(cpu, remaining);
+            CPU6_TAIL_CALL return execute<target>(cpu, remaining);
         }
     }
-    [[gnu::musttail]] return handlers[cpu.micro_pc_](cpu, remaining);
+    CPU6_TAIL_CALL return handlers[cpu.micro_pc_](cpu, remaining);
 }
 
 #define CPU6_BLOCK CPU6_BUILD_BLOCK

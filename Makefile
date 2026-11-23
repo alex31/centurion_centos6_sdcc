@@ -1,4 +1,6 @@
-CXX = g++-15
+ifneq ($(filter default undefined,$(origin CXX)),)
+CXX := $(if $(shell command -v g++-15),g++-15,g++)
+endif
 CPPFLAGS ?=
 CXXFLAGS ?= -O3 -flto -Wall -Wextra -Wpedantic
 ARCHFLAGS ?= -march=native
@@ -6,9 +8,13 @@ ROOT := $(abspath ..)
 OUT ?= $(ROOT)/build/out/emulator-cpp
 FIRMWARE_JSON ?= $(ROOT)/build/out/emulator/firmware.json
 CONFIG := $(OUT)/config
-COMPILE_FLAGS := $(CPPFLAGS) $(CXXFLAGS) $(ARCHFLAGS) -std=c++26 -fPIC
+# Probe the selected compiler's preprocessor in C++26 mode.
+CONTROL_STORE := $(shell if $(CXX) -std=c++26 -dM -E -x c++ /dev/null 2>/dev/null | grep -q ' __cpp_pp_embed '; then echo embed; else echo include; fi)
+CXX_STANDARD := $(if $(filter embed,$(CONTROL_STORE)),c++26,c++23)
+COMPILE_FLAGS := $(CPPFLAGS) $(CXXFLAGS) $(ARCHFLAGS) -std=$(CXX_STANDARD) -fPIC
 COMPILE := $(CXX) $(COMPILE_FLAGS) -MMD -MP -I$(CONFIG)
-EMBED := --embed-dir="$(CONFIG)"
+CONTROL_STORE_FLAGS := $(if $(filter embed,$(CONTROL_STORE)),-DCPU6_USE_EMBED --embed-dir="$(CONFIG)")
+GENERATED_DECODER_INPUTS := $(addprefix $(CONFIG)/,cpu6-control-store.rom cpu6-control-store.inc addresses.inc)
 SOURCES := cpu6-compiled.cpp cpu6.cpp cpu6-step.cpp backplane.cpp cmd.cpp crt.cpp finch.cpp firmware.cpp hawk.cpp machine.cpp mux.cpp peripherals.cpp terminal.cpp
 OBJECTS := $(addprefix $(OUT)/,$(SOURCES:.cpp=.o))
 BLOCKS := $(addprefix $(OUT)/cpu6-block-,0.o 1.o 2.o 3.o 4.o 5.o 6.o 7.o)
@@ -49,14 +55,14 @@ $(HEADLESS): $(OBJECTS) $(OUT)/images.o $(OUT)/headless.o
 $(OUT)/headless.o: headless.cpp $(CONFIG)/build-flags | $(OUT)
 	$(COMPILE) $(NODE_CPPFLAGS) -c $< -o $@
 
-$(CONFIG)/build-flags $(CONFIG)/cpu6-control-store.rom $(CONFIG)/addresses.inc &: FORCE prepare-aot.py | $(OUT)
-	python3 prepare-aot.py "$(CONFIG)" "$(FIRMWARE_JSON)" "$(CXX) $(COMPILE_FLAGS) $(NODE_CPPFLAGS)"
+$(CONFIG)/build-flags $(GENERATED_DECODER_INPUTS) &: FORCE prepare-aot.py | $(OUT)
+	python3 prepare-aot.py "$(CONFIG)" "$(FIRMWARE_JSON)" "$(CXX) $(COMPILE_FLAGS) $(NODE_CPPFLAGS) $(CONTROL_STORE)" "$(CONTROL_STORE)"
 
-$(BLOCKS): $(OUT)/cpu6-block-%.o: cpu6-block.cpp $(CONFIG)/build-flags $(CONFIG)/cpu6-control-store.rom $(CONFIG)/addresses.inc
-	$(COMPILE) $(EMBED) -fno-lto -DCPU6_BUILD_BLOCK=$* -c $< -o $@
+$(BLOCKS): $(OUT)/cpu6-block-%.o: cpu6-block.cpp $(CONFIG)/build-flags $(GENERATED_DECODER_INPUTS)
+	$(COMPILE) $(CONTROL_STORE_FLAGS) -fno-lto -DCPU6_BUILD_BLOCK=$* -c $< -o $@
 
-$(OUT)/cpu6-compiled.o: cpu6-compiled.cpp $(CONFIG)/build-flags $(CONFIG)/cpu6-control-store.rom $(CONFIG)/addresses.inc
-	$(COMPILE) $(EMBED) -c $< -o $@
+$(OUT)/cpu6-compiled.o: cpu6-compiled.cpp $(CONFIG)/build-flags $(GENERATED_DECODER_INPUTS)
+	$(COMPILE) $(CONTROL_STORE_FLAGS) -c $< -o $@
 
 $(OUT)/%.o: %.cpp $(CONFIG)/build-flags | $(OUT)
 	$(COMPILE) -c $< -o $@
