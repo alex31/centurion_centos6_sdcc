@@ -33,14 +33,17 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-On Debian or Ubuntu, install the build dependencies and use Node.js 20 or
-newer with npm. In WSL2, keep the checkout in the Linux filesystem.
+On Debian or Ubuntu, install the build dependencies. In WSL2, keep the
+checkout in the Linux filesystem.
 
 ```sh
 sudo apt install build-essential git flex bison libboost-dev zlib1g-dev python3 curl
-node --version
-npm --version
 ```
+
+On Ubuntu 24.04, the default native build works with the distribution's
+GCC 13 and Node.js 18. Install Node.js and its development headers with
+`sudo apt install nodejs libnode-dev`. The standalone JavaScript emulator
+and `make sdk` require Node.js 20 or newer with npm.
 
 Download the pinned upstream CenRE `src/cen.ts` locally and extract its
 firmware tables. Keep the downloaded file, extracted ROMs and firmware-derived
@@ -63,9 +66,9 @@ Build the compilers, emulator, applications and bootable CENTOS image.
 ./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
 ```
 
-`dobuild` uses the native C++26 machine at maximum speed for disk allocation,
+`dobuild` uses the native C++ machine at maximum speed for disk allocation,
 image validation and guest tests. It uses Node.js to run the test scripts
-through the native binding. This requires GCC 15.2 and the Node-API headers.
+through the native binding. This requires GCC 13 or newer and the Node-API headers.
 The Debian and Ubuntu package `libnode-dev` provides the headers for the
 distribution's Node.js package. Set `NODE_CPPFLAGS=-I/path/to/include/node`
 if your Node.js installation provides headers elsewhere. Use
@@ -114,8 +117,8 @@ enter the date (`MMDDYY`) and time (`HHMMSS`).
 
 ### Native emulator
 
-Build the C++26 server with GCC 15.2 and the Boost headers. It uses the same
-firmware pack, disk images, browser page and default ports.
+Build the native server with GCC 13 or newer and the Boost headers. It uses
+the same firmware pack, disk images, browser page and default ports.
 
 ```sh
 make -j4 emulator-cpp
@@ -123,10 +126,16 @@ run/centurion-system-cpp
 ```
 
 The build assembles the seven CPU ROMs from `build/out/emulator/firmware.json`
-into a local binary control store under `build/out/emulator-cpp/config/`.
-GCC reads that file with `#embed` and evaluates the `constexpr` microinstruction
-decoder to compile specialized microcycle handlers. The specialized objects
-and executable contain firmware-derived material and are local build products.
+into a local control store under `build/out/emulator-cpp/config/`. With GCC 15
+or newer, the build uses C++26 and reads a binary control store with `#embed`.
+With GCC 13 on Ubuntu 24.04, Python generates a C++23 initializer using its
+standard library. Both builds use the same `constexpr` decoder and specialized
+microcycle handlers. Without guaranteed tail calls, the dispatcher limits
+each call chain to 256 microcycles. Keep the generated control store, objects
+and executables in the local build directory.
+
+The build prefers `g++-15` when installed and otherwise uses `g++`. Set
+`CXX=g++-13` explicitly to select GCC 13 on a system with both compilers.
 
 Set `FIRMWARE_JSON=/absolute/path/to/pack.json` to specialize for another pack.
 At startup, the server compares every control-store byte to select the
