@@ -65,7 +65,7 @@ sudo apt install nodejs libnode-dev
 ```
 
 The native build works with the GCC 13 and Node.js 18 packages on Ubuntu
-24.04. For the JavaScript emulator and `make sdk`, use Node.js 20 or newer
+24.04. For the JavaScript fallback and `make sdk`, use Node.js 20 or newer
 with npm in the Linux shell. If your distribution ships an older version,
 install a current LTS release inside Linux and check `node --version` and
 `npm --version`. [Node.js downloads](https://nodejs.org/en/download)
@@ -122,14 +122,15 @@ cp "/mnt/c/Users/YOUR_WINDOWS_USER/Downloads/CENTOS_13.IMG" build/out/image/
 The terminal keeps the current stage visible below the build output. Log
 files and CI output show a plain-text message at each stage change.
 
-`dobuild` uses the native C++ machine at maximum speed for disk allocation,
-image validation and guest tests. It uses Node.js to run the test scripts
-through the native binding. This requires GCC 13 or newer and the Node-API headers.
-The Debian and Ubuntu package `libnode-dev` provides the headers for the
-distribution's Node.js package. Set `NODE_CPPFLAGS=-I/path/to/include/node`
-if your Node.js installation provides headers elsewhere. Use
-`CENTURION_OS6_BACKEND=javascript` with `dobuild` to run the same checks on
-the reference engine.
+`dobuild` tries the native C++ emulator first. If its build fails, `dobuild`
+prints a message, builds the JavaScript emulator and continues with it for
+disk allocation, image validation and guest tests. These steps usually take
+longer with the JavaScript emulator.
+
+The native build uses GCC 13 or newer and the Node-API headers. Set
+`NODE_CPPFLAGS=-I/path/to/include/node` if your Node.js installation provides
+headers elsewhere. Set `CENTURION_OS6_BACKEND=javascript` to select JavaScript
+directly, or `CENTURION_OS6_BACKEND=cpp` to require the native build.
 
 The generated image is `build/out/image/centos-apps.img`. The firmware
 import writes `build/out/emulator/firmware.json` by default. To use another
