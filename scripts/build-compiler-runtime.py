@@ -19,6 +19,8 @@ generator = runtime / 'compound.py'
 bit_runtime = runtime / 'bits'
 bit_generator = bit_runtime / 'bitops.py'
 bit_sources = sorted(bit_runtime.glob('*.s'))
+strings = root / 'lib/string'
+string_header = root / 'baremetal/include/string.h'
 compiler = root / 'build/out/toolchain/sdcc-cpu6/bin/sdcc'
 assembler = root / 'build/out/toolchain/bin/asee200'
 flags = ['-mcpu6', '--std=c99', '--opt-code-' + args.profile]
@@ -41,6 +43,12 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
     bitops = work / 'bitops.s'
     subprocess.run([sys.executable, bit_generator, bitops], check=True)
     objects += assemble_members(bitops, work, assembler, 'bitops')
+    string_asm = work / 'string.s'
+    subprocess.run([compiler, '-S', *flags, '--cpu6-no-auto-inline',
+                    '-I' + str(string_header.parent), '-o', string_asm,
+                    strings / 'string.c'], check=True)
+    objects += assemble_members(string_asm, work, assembler, 'str')
+    objects += assemble_members(strings / 'memory.s', work, assembler, 'strmem')
     archive = work / 'libcompiler-sdcc.a'
     subprocess.run(['ar', 'qc', archive, *objects], check=True)
     with tempfile.TemporaryDirectory(prefix='.stage-', dir=destination) as stage:
@@ -48,5 +56,6 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
         shutil.copyfile(archive, staged)
         os.replace(staged, destination / archive.name)
     write_manifest(destination/archive.name, compiler_info(compiler),
-                   flags, input_hashes([*sources, generator, *bit_sources, bit_generator]), profile=args.profile)
+                   flags, input_hashes([*sources, generator, *bit_sources, bit_generator,
+                                        strings / 'string.c', strings / 'memory.s', string_header]), profile=args.profile)
 print('Built', destination / archive.name)

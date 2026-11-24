@@ -63,6 +63,9 @@ if 'arithmetic' in parts:
     # Carry between significand halves and cancellation at the normal boundary.
     pairs += [(0x3fffffff,0x3fffffff),(0x00800000,0x807fffff),
               (0x007fffff,0x00000001),(0x7f7fffff,0x7f7fffff)]
+    # Each first operand is also converted from uint32_t. Check either
+    # side of a tie, even and odd retained significands, and carry to 2^32.
+    pairs += [(x,0) for x in (0x8000007f,0x80000080,0x80000081,0x80000180,0xffffff80)]
     pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(34)]
     source=head+'''float add(float a,float b){return a+b;} float sub(float a,float b){return a-b;}
 float mul(float a,float b){return a*b;} float divv(float a,float b){return a/b;}

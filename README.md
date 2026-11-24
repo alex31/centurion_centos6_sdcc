@@ -205,7 +205,7 @@ Stored programs compile to typed bytecode. The REPL includes an editor, and `DEF
 
 - The SDCC C sieve produced all 1,229 primes through 9,973 in **8.81 s**, including console output. The original CENTOS CPL sieve took **97.09 s** for the same primes. [Sieve measurements and compiler comparisons](doc/performance.md#prime-sieve)
 
-- The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with the same fixed seed and 27 output rows. From the first row to the last, the C program took **1.98 s** and integer BASIC took **7.28 s**. Life1D took **12 min 38 s** for its first 26 generations under CENTOS BASIC 6.03. [C Life1D](doc/performance.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/performance.md#basic-benchmarks)
+- The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with the same fixed seed and 27 output rows. From the first row to the last, the C program took **1.98 s** and integer BASIC took **6.76 s**. Life1D took **12 min 38 s** for its first 26 generations under CENTOS BASIC 6.03. [C Life1D](doc/performance.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/performance.md#basic-benchmarks)
 
 These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.  [Benchmark results](doc/performance.md)
 

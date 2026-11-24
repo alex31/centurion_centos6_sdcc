@@ -95,6 +95,49 @@ The format used by the driver has 29 sectors per track.
 verifies that adjacent data is preserved on the microcoded emulator.
 The filesystem format and boot files are separate parts of a bootable disk.
 
+## Memory and strings
+
+Include `<string.h>` in bare-metal or CENTOS programs. Both drivers link
+the routines on demand, one function per archive member. Including the
+header alone adds no code or static data, even with `--no-gc-sections`.
+
+| Operation | Functions |
+| --- | --- |
+| Raw memory | `memcpy`, `memmove`, `memset`, `memcmp`, `memchr` |
+| Length, copy and append | `strlen`, `strnlen`, `strcpy`, `strncpy`, `strcat`, `strncat`, `strlcpy`, `strlcat` |
+| Compare and search | `strcmp`, `strncmp`, `strchr`, `strrchr`, `strstr`, `strspn`, `strcspn`, `strpbrk` |
+| Split into tokens or fields | `strtok`, `strtok_r`, `strsep` |
+
+Use `memmove` when the memory ranges overlap. `strlcpy` and `strlcat`
+take the full destination capacity and return the length they tried to
+produce. A return value at least as large as the capacity indicates truncation.
+
+```c
+#include <stdio.h>
+#include <string.h>
+
+void print_tokens(void)
+{
+    char line[] = "LOAD,  DEMO;RUN";
+    const char *separators = ", ;";
+    char *token = strtok(line, separators);
+    while (token) {
+        puts(token);
+        token = strtok(NULL, separators);
+    }
+}
+```
+
+This prints `LOAD`, `DEMO` and `RUN`. Tokenization edits the writable
+buffer in place and skips runs of delimiters. Each call may choose a new
+delimiter set. `strtok` holds one shared cursor. For nested or interleaved
+parsing, declare a separate `char *cursor` per buffer and use
+`strtok_r(line, separators, &cursor)`, then `strtok_r(NULL, separators, &cursor)`.
+
+Use the BSD function `strsep(&cursor, ",")` to keep empty fields. Initialize
+`cursor` to the start of a writable buffer. For `"a,,b,"`, successive calls
+return `"a"`, `""`, `"b"`, `""`, then `NULL`. [BSD reference](https://man.openbsd.org/strsep.3)
+
 ## CPU6 ABI and arithmetic
 
 The target is big-endian and uses 16-bit words. The backend uses X, Y and

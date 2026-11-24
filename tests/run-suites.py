@@ -17,6 +17,7 @@ SUITES = (
     "sdcc-cpu6-codegen.py",
     "sdcc-cpu6-constants.py",
     "sdcc-bit-builtins.py",
+    "libc-string.py",
     "sdcc-byte-arithmetic.py",
     "sdcc-wide-arithmetic.py",
     "sdcc-native-arithmetic.py",

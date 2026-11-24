@@ -1,4 +1,5 @@
 #include "game.h"
+#include <stdint.h>
 #ifdef C4_PROFILE
 #include <stdio.h>
 #endif
@@ -98,22 +99,41 @@ void c4_clock_read(unsigned long *value);
 static int completed_depth;
 #endif
 
+/* Each byte holds one column. Reversing these lanes pairs the same four
+   columns in the opposite order for the second diagonal. */
+static inline uint16_t reverse_columns(uint16_t pair)
+{
+#ifdef __SDCC_cpu6
+    return __builtin_bswap16(pair);
+#else
+    return (uint16_t)((pair << 8) | (pair >> 8));
+#endif
+}
+
 static int position_win(int player, int column)
 {
     int first, last, c;
-    unsigned int a, b, d, e;
+    unsigned int a;
     unsigned char *p = player == C4_HUMAN ? search_position.human : search_position.computer;
     a = p[column];
-    if (a & (a >> 1) & (a >> 2) & (a >> 3)) return 1;
+    a &= a >> 1;
+    if (a & (a >> 2)) return 1;
     first = column - 3;
     if (first < 0) first = 0;
     last = column;
     if (last > 3) last = 3;
     for (c = first; c <= last; c++) {
-        a = p[c]; b = p[c + 1]; d = p[c + 2]; e = p[c + 3];
-        if ((a & b & d & e) ||
-            (a & (b >> 1) & (d >> 2) & (e >> 3)) ||
-            ((a >> 3) & (b >> 2) & (d >> 1) & e)) return 1;
+        /* Six occupied-row bits leave two padding bits in each byte. The
+           shift by one clears bit 5 of the low lane, so a bit from the
+           high lane cannot produce a match when the outer pair shifts by 3. */
+        const uint16_t outer = ((uint16_t)p[c] << 8) | p[c + 3];
+        const uint16_t inner = ((uint16_t)p[c + 1] << 8) | p[c + 2];
+        const uint16_t horizontal = outer & inner;
+        const uint16_t matching = outer & (inner >> 1);
+        if ((horizontal & (horizontal >> 8)) ||
+            (matching && (matching & (reverse_columns(inner) >> 2) &
+                                     (reverse_columns(outer) >> 3))))
+            return 1;
     }
     return 0;
 }

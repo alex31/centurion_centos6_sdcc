@@ -4,7 +4,14 @@ uint32_t f32_fromu(uint32_t value)
 {
     int exponent=158;
     if (!value) return 0;
+#ifdef CPU6_FLOAT_ABI_THUNKS
+    /* Shift the most significant one to bit 31 in a single normalization. */
+    unsigned leading = __builtin_clzg(value);
+    value <<= leading;
+    exponent -= (int)leading;
+#else
     while (!(value&F32_SIGN)) {value<<=1;exponent--;}
+#endif
     return f32_pack(0,exponent,f32_jam(value,5));
 }
 uint32_t f32_fromi(int32_t value)

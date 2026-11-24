@@ -1,5 +1,37 @@
 # Centurion CPU6 performance
 
+## Application and libc update
+
+The image with the memory and string library uses SDCC `58c95ff51` and
+Stefan BASIC `e89e179`. Relative to distribution `9caf89a`, the eleven
+BASIC benchmarks used **2.07% fewer microcycles** on average, weighting
+each program equally. Both images ran the same workloads three times.
+
+| Workload | Previous microcycles | Updated microcycles | Reduction |
+| --- | ---: | ---: | ---: |
+| BM6 | 88,500,690 | 78,767,136 | 11.00% |
+| BM7 | 126,331,026 | 116,698,268 | 7.63% |
+| BM8 | 339,044,238 | 330,271,234 | 2.59% |
+| AHL | 123,469,327 | 121,882,161 | 1.29% |
+| BASIC `.LIST`, 13 numeric lines | 6,927,095 | 4,738,398 | 31.60% |
+| Connect Four search, five moves | 36,431,675 | 32,807,285 | 9.95% |
+
+The SDCC binary32 runtime uses CLZ to normalize an unsigned integer for
+conversion to float. This favors small inputs. In the conversion routine
+alone, the values 0 through 1,000 took 66.40% fewer microcycles, while
+4,096 uniformly distributed 32-bit inputs took 19.06% more.
+BASIC's decimal formatter cancels powers of two with CTZ before expanding
+a fraction. The `.LIST` timings cover the echoed command through the last
+displayed line, with identical output in all three runs.
+
+Connect Four packs column pairs and uses `bswap16` to check both diagonals.
+Its code shrank from 5,113 to 5,105 bytes, with the same moves and boards.
+Across all 64 CENTOS files, load-record bytes fell from 147,339 to 147,262.
+Each file kept its previous on-disk size, totaling 181,200 bytes. The
+[string functions](sdcc.md#memory-and-strings) are linked individually.
+
+## Compiler comparison at revision `28ba3f7`
+
 The comparison starts at distribution revision `933f46c` and SDCC revision
 `e69c8e6a7`. Both builds use the same application sources, compiler flags,
 CENTOS seed and CPU6 microcode. The optimized build uses distribution
@@ -137,7 +169,7 @@ update, at the CPU6's nominal 5 MHz rate.
 | Program | CPU6 microsteps | Time at 5 MHz |
 | --- | ---: | ---: |
 | `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
-| Distributed integer bytecode BASIC | 36,396,704 | 7.28 s |
+| Distributed integer bytecode BASIC | 33,816,108 | 6.76 s |
 | Distributed C compiled by SDCC | 9,893,380 | 1.98 s |
 
 The historical row reports one full emulator run, with generation times
@@ -157,7 +189,7 @@ The C build used `-O1 --lto --gc-sections -DLIFE_SEED=1`.
 
 The bytecode `LIFE1D` benchmark times the interval from the printed title
 through the final board and checks all 27 rows. With ordinary scheduling,
-the baseline and optimized builds took medians of 34,504,742 and
+the baseline and `28ba3f7` builds took medians of 34,504,742 and
 37,049,195 microcycles.
 At some clock phases, CENTOS restores the task's mappings a second time
 when handling a checkpoint. With matched clock phases, the optimized
@@ -175,20 +207,20 @@ The C64 column gives published timings from *Practical Computing* and
 
 | Workload | Centurion BASIC at 5 MHz | Commodore 64 BASIC |
 | --- | ---: | ---: |
-| BM1 | 0.65 s | 1.4 s |
+| BM1 | 0.64 s | 1.4 s |
 | BM2 | 2.38 s | 10.5 s |
 | BM3 | 7.54 s | 19.2 s |
 | BM4 | 8.65 s | 20.0 s |
 | BM5 | 9.42 s | 21.0 s |
-| BM6 | 17.70 s | 32.2 s |
-| BM7 | 25.27 s | 51.6 s |
-| BM8 | 67.81 s | 116.0 s |
-| Ahl | 24.69 s | 113 s |
+| BM6 | 15.75 s | 32.2 s |
+| BM7 | 23.34 s | 51.6 s |
+| BM8 | 66.05 s | 116.0 s |
+| Ahl | 24.38 s | 113 s |
 
-Across these workloads, the port is between 1.71 and 4.58 times as fast
+Across these workloads, the port is between 1.76 and 4.64 times as fast
 as the published C64 reference. BM8 remains the longest workload in the
 suite. The CPU6 run uses IEEE binary32 and the C64 figures describe its
-original BASIC arithmetic. [Exact microcycles and build revisions](#guest-execution)
+original BASIC arithmetic. [Application measurements](#application-and-libc-update)
 
 ```sh
 make bench-basic BASIC_BENCHMARKS=all
