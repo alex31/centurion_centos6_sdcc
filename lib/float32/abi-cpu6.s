@@ -7,6 +7,9 @@
 	.export ___fsadd
 	.export ___fsmul
 	.export ___fsdiv
+	.export ___c6_feq
+	.export ___c6_flt
+	.export ___c6_fle
 	.export ___fseq
 	.export ___fslt
 	.export ___fsle
@@ -36,18 +39,87 @@ ___fsmul:
 ___fsdiv:
 	jmp ___c6_fdiv
 ; CPU6 function ___fsdiv end
+; IEEE ordered comparisons use the sign and the unsigned ordering of the
+; magnitude words. The other two relations (greater and unordered) return
+; false at all three entry points. A mask selects less (1) and/or equal (2).
 ; CPU6 function ___fseq begin
 ___fseq:
-	jmp ___c6_feq
-; CPU6 function ___fseq end
-; CPU6 function ___fslt begin
+___c6_feq:
+    ldb 2
+    bra ordered_compare
 ___fslt:
-	jmp ___c6_flt
-; CPU6 function ___fslt end
-; CPU6 function ___fsle begin
+___c6_flt:
+    ldb 1
+    bra ordered_compare
 ___fsle:
-	jmp ___c6_fle
-; CPU6 function ___fsle end
+___c6_fle:
+    ldb 3
+ordered_compare:
+    stb (-s)
+    lda 4(s)
+    and 0x7fff,a
+    sub a,0x7f80,b       ; infinity high word minus magnitude high word
+    bnl compare_false
+    bnz ordered_right
+    ldb 6(s)
+    bnz compare_false    ; NaN with payload in the low word
+ordered_right:
+    lda 8(s)
+    and 0x7fff,a
+    sub a,0x7f80,b
+    bnl compare_false
+    bnz ordered_signs
+    ldb 10(s)
+    bnz compare_false
+ordered_signs:
+    lda 4(s)
+    ldb 8(s)
+    ore a,b
+    bm signs_differ
+    ldb 8(s)
+    sab
+    bnz magnitude_differs
+    lda 6(s)
+    ldb 10(s)
+    sab
+    bz compare_equal
+magnitude_differs:
+    ldab 4(s)            ; load preserves the unsigned no-borrow flag
+    bm both_negative
+    bnl compare_less
+    bra compare_false
+both_negative:
+    bl compare_less
+    bra compare_false
+signs_differ:
+    ; The two encodings of zero compare equal.
+    lda 4(s)
+    ori 8(s),a
+    sla
+    bnz compare_sign
+    lda 6(s)
+    ori 10(s),a
+    bz compare_equal
+compare_sign:
+    ldab 4(s)
+    bp compare_false
+compare_less:
+    ldb 1
+    bra compare_mask
+compare_equal:
+    ldb 2
+compare_mask:
+    lda (s)
+    nab
+    bz compare_done
+    ldb 1
+    bra compare_done
+compare_false:
+    clr b
+compare_done:
+    inr s,2
+    rsr
+; CPU6 function ___fseq end
 ; CPU6 function ___ulong2fs begin
 ___ulong2fs:
 	jmp ___c6_ffromu

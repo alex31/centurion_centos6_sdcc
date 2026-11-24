@@ -22,6 +22,7 @@ with tempfile.TemporaryDirectory(prefix='cpu6-float32-',dir=root/'build') as tem
                         '-I'+str(root/'lib/float32'),'-o',assembly,source],check=True)
         objects+=assemble_members(assembly,work,root/'build/out/toolchain/bin/asee200','f32%02d'%index)
     objects+=assemble_members(root/'lib/float32/abi-cpu6.s',work,root/'build/out/toolchain/bin/asee200','f32abi')
+    objects+=assemble_members(root/'lib/float32/add-cpu6.s',work,root/'build/out/toolchain/bin/asee200','f32add')
     objects+=assemble_members(root/'lib/float32/significand-cpu6.s',work,root/'build/out/toolchain/bin/asee200','f32sig')
     archive=work/'libfloat32-sdcc.a'
     subprocess.run(['ar','qc',archive,*objects],check=True)

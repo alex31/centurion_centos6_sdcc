@@ -47,6 +47,10 @@ need banked memory or separately loaded code.
 
 The measurements below count CPU6 microsteps in the JavaScript emulator.
 Times use the nominal 5 MHz clock and the CENTOS console runs at 9,600 baud.
+For individual instruction timings, encoding sizes and addressing modes,
+see the [CPU6 cost table](cpu6-instruction-costs.md). The November 2026
+[SDCC benchmark comparison](sdcc-codegen-benchmarks.md) covers all 16
+workloads and checks the size of each shipped executable.
 
 ### Prime sieve
 
@@ -96,6 +100,29 @@ first-to-last-row interval fell from 10.41 to 9.89 million microsteps.
 The row output accounts for much of the elapsed time.
 The BASIC guide also reports a timing for Life1D under CENTOS BASIC 6.03
 using the listing linked in Usagi Electric's demonstration. [Historical Life1D comparison](basic.md#one-dimensional-life)
+
+#### CENTOS scheduling in the bytecode BASIC benchmark
+
+The bytecode `LIFE1D` benchmark times the interval from the printed title
+through the final board and checks all 27 rows. In two image builds the
+unmodified benchmark took 34,492,322 and 37,128,959 microcycles. Both
+executed 649 application checkpoints (SVC 7). On entry to a system call,
+CENTOS compares a task timestamp at offset `0x59` with the low byte of the
+level-10 clock register Z. In the slower run, the check at `0x1093` took
+the path through `0x10A0`, which invokes the scheduler before SVC 7
+itself yields. This restores the same task's MMU mappings twice per
+checkpoint. [Benchmark and board oracle](../tests/basic-life.js)
+
+For a controlled comparison, the JavaScript microcoded core set the task
+timestamp once, at the first measured syscall check, to the clock value
+plus the indicated offset. The clock interrupt stayed idle throughout the
+timed interval. Each cell is one execution in microcycles with the same
+program, seed and board oracle. The image IDs come from the BASIC manifests.
+
+| Task timestamp | BASIC image `7723160E` | BASIC image `D19F5B06` |
+| --- | ---: | ---: |
+| Clock + 0 | 37,100,164 | 37,142,519 |
+| Clock + 3 | 34,492,322 | 34,436,661 |
 
 ## Verification and sources
 

@@ -91,23 +91,11 @@ async function main() {
         selection.split(',');
     assert.ok(selected.every(name => Object.hasOwn(benchmarks, name)), 'Unknown BASIC benchmark');
     const session = new OS6Session(image);
-    const cpu = global.window.cpu;
-    const step = cpu.hsstep.bind(cpu);
-    const write = session.port.write_data.bind(session.port);
-    let start, end, steps = 0;
-    cpu.hsstep = () => {
-        if (start !== undefined && end === undefined) ++steps;
-        return step();
-    };
-    session.port.write_data = value => {
-        const result = write(value);
-        if ((value & 127) === 10) {
-            const from = session.output.lastIndexOf('\n', session.output.length - 2) + 1;
-            const line = session.output.slice(from).trim();
-            if (line === 'S') start = steps;
-            if (line === 'E' && start !== undefined) end = steps;
-        }
-        return result;
+    let start, end;
+    session.onLine = (text, cycle) => {
+        const line = text.trim();
+        if (line === 'S') start = cycle;
+        if (line === 'E' && start !== undefined) end = cycle;
     };
 
     async function command(text) {
@@ -131,7 +119,6 @@ async function main() {
             for (const line of ['300 PRINT "S"', ...body, '700 PRINT "E"', print, '800 END'])
                 await command(line);
             start = end = undefined;
-            steps = 0;
             const output = await command('.RUN');
             const match = /\nRESULT ([^\r\n]+)\r?\n/.exec(output);
             assert.ok(match, output);

@@ -36,11 +36,47 @@ uint16_t late_use(uint16_t n) {
 }
 struct record {uint16_t value; uint8_t padding[5];};
 static struct record table[256];
+static uint8_t fill_bytes[520];
+static volatile uint8_t ports[8];
+extern void fill_barrier(void);
+unsigned refill(unsigned seed) {
+ uint8_t *p=fill_bytes+1;
+ while(p!=fill_bytes+519)*p++=165;
+ fill_barrier();
+ unsigned i,total=0;
+ for(i=0;i<520;i++)total+=(fill_bytes[i]==165)+i*seed;
+ return total;
+}
+void partial_fill(unsigned skip) {
+ uint8_t *p=fill_bytes+2;
+ if(skip){p=fill_bytes+515;goto write;}
+ while(p!=fill_bytes+519){write: *p++=44;}
+}
+static volatile unsigned first=61, second=17;
+unsigned keep_live(void) {
+ unsigned x=first, y=second;
+ uint8_t *p=fill_bytes+1;
+ while(p!=fill_bytes+519)*p++=11;
+ fill_barrier();
+ return x*7U+y*3U;
+}
 uint16_t scan(uint16_t n) {
  uint16_t i,s=0; for(i=0;i<n;i++)s+=table[i].value; return s;
 }
 int main(void) {
  uint16_t i,k,total=0;
+ uint8_t *p=fill_bytes+1;
+ volatile uint8_t *v=ports+1;
+ while(p!=fill_bytes+1)*p++=33;
+ if(fill_bytes[1])return 1;
+ while(p!=fill_bytes+2)*p++=2;
+ if(fill_bytes[1]!=2 || fill_bytes[2])return 2;
+ while(v!=ports+7)*v++=99;
+ if(ports[0] || ports[1]!=99 || ports[6]!=99 || ports[7])return 3;
+ partial_fill(1);
+ if(fill_bytes[2] || fill_bytes[514] || fill_bytes[515]!=44 || fill_bytes[518]!=44)return 4;
+ if(refill(0)!=518 || fill_bytes[0] || fill_bytes[519])return 5;
+ if(keep_live()!=478 || fill_bytes[511]!=11)return 6;
 '''
 checks=[]
 for start,end in [(0,0),(3,3),(9,2),(0,100),(19,171),(32700,32900),(65200,65535)]:
@@ -77,10 +113,14 @@ source+=''' for(i=0;i<256;i++)table[i].value=i*61U+7U;
 source+=f' if(total!={expected}U){{puts("FAIL record scan");return 1;}}\n'
 source+=' puts("PASS induction and strided record scans");return 0;}\n'
 (work/'program.c').write_text(source)
-rows=execute(work,[work/'program.c'],[
+(work/'barrier.c').write_text('void fill_barrier(void) {}\n')
+rows=execute(work,[work/'program.c',work/'barrier.c'],[
     ('on',['-O1']),('off',['-O1','--sdcc-option=--cpu6-no-loop-strength']),
     ('no-peep',['-O1','--no-peep']),('stack',['-O0']),
     ('size',['-O1','--sdcc-option=--opt-code-size'])],
     common=['--sdcc-option=--cpu6-no-auto-inline'])
+assembly=(work/'on/unit2.s').read_text()
+assert '\tcpy\n' in assembly.split('_refill:\n',1)[1].split('; CPU6 function _refill end',1)[0]
+assert '\tcpy\n' not in assembly.split('_partial_fill:\n',1)[1].split('; CPU6 function _partial_fill end',1)[0]
 print('Measured total gain: %.2f%%' % (100*(1-rows[0]['ticks']/rows[1]['ticks'])),flush=True)
 (ROOT/'build/out/tests/latest-sdcc-loop-strength.txt').write_text(str(work)+'\n')

@@ -12,7 +12,8 @@ work = Path(tempfile.mkdtemp(prefix='sdcc-wide-tests-', dir=root / 'build/out/te
 print('Results:', work, flush=True)
 rng = random.Random(0x323248)
 mask = (1 << 32) - 1
-corners = [0, 1, 2, 47, 65535, 65536, 65537, 0x7fffffff, 0x80000000, 0xfffffffe, mask]
+corners = [0, 1, 2, 47, 65535, 65536, 65537, 0x7fffffff, 0x80000000,
+           0xffff0000, 0xfffffffe, mask]
 pairs = [(a, b) for a in corners for b in corners if b]
 pairs += [(rng.getrandbits(32), rng.getrandbits(32) or 1) for _ in range(40)]
 def flags(a, b):
@@ -57,12 +58,26 @@ static uint32_t add(uint32_t a, uint32_t b) { return a + b; }
 static uint32_t subtract(uint32_t a, uint32_t b) { return a - b; }
 static uint32_t multiply(uint32_t a, uint32_t b) { return a * b; }
 static int mixed(int32_t a) { return a < -1L; }
-struct unsigned_case { uint32_t a,b,q,r,sum,difference,product,inc,add2,dec,sub65535; unsigned comparison; };
+static unsigned compare_constants(uint32_t a) {
+    unsigned r = 0;
+    if (a == 0x00010000UL) r |= 1;
+    if (a != 0xffff0000UL) r |= 2;
+    if (a < 0x80000000UL) r |= 4;
+    if (a <= 0x00010000UL) r |= 8;
+    if (a > 0x0000ffffUL) r |= 16;
+    if (a >= 0xfffffffeUL) r |= 32;
+    if ((int32_t)a == -1L) r |= 64;
+    return r;
+}
+struct unsigned_case { uint32_t a,b,q,r,sum,difference,product,inc,add2,dec,sub65535; unsigned comparison,constants; };
 static const struct unsigned_case unsigned_cases[] = {
 '''
 for a,b in pairs:
+    constants = sum(1 << i for i, match in enumerate((
+        a == 0x10000, a != 0xffff0000, a < 0x80000000, a <= 0x10000,
+        a > 0xffff, a >= 0xfffffffe, signed(a) == -1)) if match)
     source += '{' + ','.join(map(literal, [a,b,a//b,a%b,(a+b)&mask,(a-b)&mask,(a*b)&mask,
-                                         (a+1)&mask,(a+2)&mask,(a-1)&mask,(a-65535)&mask])) + ',' + str(flags(a,b)) + '},\n'
+                                         (a+1)&mask,(a+2)&mask,(a-1)&mask,(a-65535)&mask])) + f',{flags(a,b)},{constants}}},\n'
 source += '};\nstruct signed_case { int32_t a,b,q,r; unsigned comparison; };\nstatic const struct signed_case signed_cases[] = {\n'
 for ua,ub in pairs:
     a,b = signed(ua),signed(ub)
@@ -79,6 +94,7 @@ int main(void) {
         if (divide_u(a,b) != p->q || remainder_u(a,b) != p->r ||
             add(a,b) != p->sum || subtract(a,b) != p->difference ||
             multiply(a,b) != p->product || compare_u(a,b) != p->comparison ||
+            compare_constants(a) != p->constants ||
             increment(a) != p->inc || add_two(a) != p->add2 ||
             subtract_one(a) != p->dec || subtract_large(a) != p->sub65535) {
             puts("FAIL unsigned wide arithmetic"); return 1;

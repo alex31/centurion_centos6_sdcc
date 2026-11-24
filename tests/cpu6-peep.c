@@ -276,6 +276,21 @@ int main(void)
         assert(cpu6instructionSize(p + 3) == 3);
         free(p);
     }
+    {
+        /* The assembler can emit an absolute transfer for a distant target. */
+        PROGRAM("bra Lfar", "bsr Lfar", "lda ( x+ )", "lda (zf)", "ldab (cf)",
+                "mul cf,b", "add zf,x", "ldb (x)", "ldb @(x)");
+        assert(cpu6instructionSize(p) == 3);
+        assert(cpu6instructionSize(p + 1) == 3);
+        assert(cpu6instructionSize(p + 2) >= 2);
+        assert(cpu6instructionSize(p + 3) == 3);
+        assert(cpu6instructionSize(p + 4) == 3);
+        assert(cpu6instructionSize(p + 5) == 4);
+        assert(cpu6instructionSize(p + 6) == 4);
+        assert(cpu6instructionSize(p + 7) == 1);
+        assert(cpu6instructionSize(p + 8) == 2);
+        free(p);
+    }
     assert(!cpu6canAssign("b", "2(b)", "rmw-memory"));
     assert(!cpu6canAssign("b", "(a)", "rmw-memory"));
     assert(cpu6canAssign("b", "2(x)", "rmw-memory"));

@@ -53,6 +53,16 @@ if 'arithmetic' in parts:
     pairs += [(0x3fc00001,0x3fc00001),(0x3f900001,0x3f900001)]
     pairs += [(0x3f80ffff,0x3fffffff),(0x3f808000,0x3ffffffe),(0x3f807fff,0x3f810000)]
     pairs += [(0x7f000001,0x00800003),(0x80800001,0x00000005)]
+    # Same high word with reversed magnitude ordering for negative values.
+    # Include NaNs whose only payload bit lives in the low word, on either side.
+    pairs += [(0xbf80ffff,0xbf800001),(0xbf800001,0xbf80ffff),
+              (0x80000000,0),(0xff800001,0xff800000),(0x7f800000,0x7f800001)]
+    # Either side of the half-ulp below 1.0, then a tie that rounds up to 1.
+    pairs += [(0x3f800000,0xb2ffffff),(0x3f800000,0xb3000000),
+              (0x3f800000,0xb3000001),(0x3f7fffff,0x33000000)]
+    # Carry between significand halves and cancellation at the normal boundary.
+    pairs += [(0x3fffffff,0x3fffffff),(0x00800000,0x807fffff),
+              (0x007fffff,0x00000001),(0x7f7fffff,0x7f7fffff)]
     pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(34)]
     source=head+'''float add(float a,float b){return a+b;} float sub(float a,float b){return a-b;}
 float mul(float a,float b){return a*b;} float divv(float a,float b){return a/b;}

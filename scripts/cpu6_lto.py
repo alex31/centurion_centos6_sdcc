@@ -201,6 +201,7 @@ def optimize(paths, report_path, no_inline=()):
         for caller in group:
             if not caller.abi or caller.abi[-1] not in ('0', '2'):
                 continue
+            size_mode = '; CPU6 optimize for size' in caller.lines
             output, budget, sites = [], 96, 0
             for line in caller.lines:
                 op, target = instruction(line)
@@ -230,6 +231,11 @@ def optimize(paths, report_path, no_inline=()):
                     expansion.append(item)
                 if preserve_x:
                     expansion.append('\tldx (s+)')
+                # An external JSR occupies three bytes. Its target may still
+                # be required by an address reference or another overlay.
+                if size_mode and sum(size_bound(item) for item in expansion) > 3:
+                    output.append(line)
+                    continue
                 output += ['; CPU6 LTO inline ' + target, *expansion, '; CPU6 LTO inline end']
                 budget -= cost
                 sites += 1

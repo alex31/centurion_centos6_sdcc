@@ -1,5 +1,6 @@
 #include "core.h"
 
+#ifndef CPU6_FLOAT_ABI_THUNKS
 uint32_t f32_add(uint32_t a,uint32_t b)
 {
     uint32_t aa=F32_ABS(a),bb=F32_ABS(b),ma,mb,tmp;
@@ -29,3 +30,4 @@ uint32_t f32_add(uint32_t a,uint32_t b)
     }
     return f32_pack(sign,ea,ma);
 }
+#endif

@@ -61,6 +61,52 @@ check(['addb al,bl','orib bl,bl','rsr'],'orib bl,bl',False)
 check(['mul a,b','orib bl,bl','rsr'],'orib bl,bl')
 check(['!ldbb (x)','orib bl,bl','inr x','rsr'],'(x+)',False)
 
+# Signed byte promotion must retain the arithmetic flags when they are live.
+sext = ['clrb bh', 'orib bl,bl', 'bp Lpositive', 'dcrb bh', 'Lpositive:']
+for value in ('0','127','-1','-128','0xff80'):
+    check(['ldb '+value, *sext, 'rsr'], 'Lpositive:\nrsr')
+    check(['ldb '+value, *sext, 'rsr'], 'srrb bh', False)
+check(['ldb 128', *sext, 'rsr'], 'srrb bh,7')
+check(['ldbb (x)', *sext, 'bl Ldone', 'Ldone:', 'rsr'], 'clrb bh\nldbb (x)\nbp')
+check(['ldbb (b)', *sext, 'bl Ldone', 'Ldone:', 'rsr'], 'orib bl,bl')
+check(['!ldbb (x)', *sext, 'bl Ldone', 'Ldone:', 'rsr'], 'orib bl,bl')
+check([*sext, 'stbb (x)', 'ldb 0', 'rsr'], 'srrb bh', False)
+check([*sext, 'bm Ldone', 'Ldone:', 'rsr'], 'orib bl,bl')
+
+equal = [*sext, 'sub 65410,b', 'bz Ldone','Ldone:', 'ldb 7', 'rsr']
+check(equal, 'ldab <65410')
+check(['bz Lpositive', *equal], 'ldab <65410', False)
+check([*sext, 'sub 128,b', 'ldb 7', 'rsr'], 'ldab <128', False)
+check([*sext, 'sub 2,b', 'bl Ldone', 'Ldone:', 'ldb 7', 'rsr'], 'ldab <2', False)
+check([*sext, 'sub 2,b', 'rsr'], 'ldab <2', False)
+check([*sext, 'sub 2,b', 'stab (x)', 'ldb 7', 'rsr'], 'ldab <2', False)
+
+for op in ('add','and','ori','ore'):
+    check(['ldb (_value)', f'{op} x,b', 'rsr'], f'{op} x,(_value),b')
+    check(['xfr y,b', f'{op} 31,b', 'rsr'], f'{op} y,31,b')
+check(['xfr y,b', 'sub 31,b', 'rsr'], 'sub y,31,b')
+check(['xfr y,b', 'sub x,31,b', 'rsr'], 'sub y,x,31,b', False)
+check(['ldb 4(s)', 'add b,b', 'rsr'], 'add b,4(s),b', False)
+check(['ldb (s+)', 'ldb (b)', 'rsr'], 'ldb @(s+)', False)
+check(['ldb @4(s)', 'ldb (b)', 'rsr'], 'ldb @@4(s)', False)
+check(['!ldb 4(s)', 'ldb (b)', 'rsr'], 'ldb @4(s)', False)
+check(['ldb 4(s)', 'ldb (b)', 'rsr'], 'ldb @4(s)')
+check(['ldb 4(s)', 'ldbb (b)', 'clrb bh', 'rsr'], 'ldbb @4(s)')
+check(['ldb 4(s)', 'ldbb (b)', 'rsr'], 'ldbb @4(s)', False)
+check(['xfr x,b', 'xfr b,y', 'ldb 4', 'rsr'], 'xfr x,y')
+check(['xfr x,b', '@xfr b,y', 'ldb 4', 'rsr'], 'xfr x,y', False)
+check(['ldb 2(s)', '@ldb (b)', 'rsr'], 'ldb @2(s)', False)
+check(['stb (-s)', 'lda (__hireg)', '@sta (-s)', 'rsr'], 'push ah,bl', False)
+
+check(['inr s,2', 'stb (-s)', 'rsr'], 'stb (s)')
+check(['inr s,2', 'stb (-s)', 'bf Ldone', 'Ldone:', 'rsr'], 'inr s,2')
+check(['stb (-s)', 'lda (__hireg)', 'sta (-s)', 'rsr'], 'push ah,bl')
+check(['stb (-s)', '!lda (__hireg)', 'sta (-s)', 'rsr'], 'push ah,bl', False)
+for reg in 'xyz':
+    push = 'stx (-s)' if reg == 'x' else f'push {reg}h,{reg}l'
+    check([f'xfr {reg},b','stb (-s)','ldb 7','rsr'],push)
+    check([f'xfr {reg},b','stb (-s)','rsr'],push,False)
+
 # Index-register arithmetic can bypass a dead A or B without changing flags.
 for register in 'xyz':
     for operand in 'axyz':

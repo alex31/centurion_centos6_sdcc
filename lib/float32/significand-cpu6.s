@@ -156,3 +156,108 @@ jam_zero:
     sta (__hireg)
     rsr
 ; CPU6 function ___c6_fjam end
+
+    .export ___c6_fpack
+; Form a binary32 word from a sign, biased exponent and significand.
+; The hidden bit is bit 26, with three guard/round/sticky bits below
+; the fraction. All callers supply a significand smaller than 2^27.
+; CPU6 function ___c6_fpack begin
+___c6_fpack:
+    push yh,zl
+    ldw y,8(s)          ; exponent
+    bgz pack_normal
+    sub y,1,a           ; right shift distance = 1 - exponent
+    sta (-s)
+    lda 14(s)           ; significand low
+    sta (-s)
+    lda 14(s)           ; significand high
+    sta (-s)
+    jsr ___c6_fjam
+    inr s,6
+    ldw z,(__hireg)
+    ldw y,1
+    bra pack_round
+pack_normal:
+    ldw z,10(s)
+    ldb 12(s)
+pack_round:
+    ; Round to nearest even before shifting: add 3 plus retained bit 0.
+    and b,8,a
+    bz pack_even
+    add 4,b
+    bra pack_carry
+pack_even:
+    add 3,b
+pack_carry:
+    bnl pack_shift
+    inr z
+pack_shift:
+    xfr z,a
+    srr a
+    rrr b
+    srr a
+    rrr b
+    srr a
+    rrr b
+    and a,256,z
+    bz pack_exponent
+    ; Only 0xffffff rounding up can carry out of the mantissa.
+    lda 128
+    inr y
+pack_exponent:
+    sub y,254,z
+    bnl pack_infinity
+    and a,128,z
+    bnz pack_fraction
+    clr y                ; rounded subnormal or zero
+pack_fraction:
+    and 127,a
+    slr y,7
+    ori y,a
+    bra pack_sign
+pack_infinity:
+    lda 0x7f80
+    clr b
+pack_sign:
+    ldw z,6(s)
+    bz pack_store
+    ori 0x8000,a
+pack_store:
+    sta (__hireg)
+    pop yh,zl
+    rsr
+; CPU6 function ___c6_fpack end
+
+    .export ___c6_funpack
+; Split a finite nonzero magnitude into a biased exponent and its
+; normalized 24-bit significand. The exponent of a subnormal may be negative.
+; CPU6 function ___c6_funpack begin
+___c6_funpack:
+    push yh,zl
+    ldw y,10(s)         ; output pointer
+    lda 6(s)
+    sla
+    clr z
+    xfrb ah,zl
+    lda 6(s)
+    and 127,a
+    ldb 8(s)
+    ori z,z
+    bz unpack_subnormal
+    ori 128,a
+    bra unpack_store
+unpack_subnormal:
+    ldw z,1
+unpack_left:
+    slr b
+    rlr a
+    dcr z
+    orib al,al
+    bp unpack_left
+unpack_store:
+    sta (y+)
+    stb (y)
+    xfr z,b
+    pop yh,zl
+    rsr
+; CPU6 function ___c6_funpack end

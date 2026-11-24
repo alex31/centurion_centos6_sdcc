@@ -7,7 +7,6 @@ uint32_t f32_jam(uint32_t value,unsigned distance)
     if (distance >= 32) return value != 0;
     return (value >> distance) | ((value & ((1UL << distance)-1UL)) != 0);
 }
-#endif
 
 /* Significand has three rounding bits, with sticky in bit zero, and its
    normal hidden bit at bit 26. Exponent is the encoded exponent before
@@ -43,3 +42,4 @@ int f32_unpack(uint32_t bits,uint32_t *significand)
     *significand=mantissa;
     return exponent;
 }
+#endif
