@@ -16,6 +16,9 @@ destination.mkdir(parents=True, exist_ok=True)
 runtime = root / 'lib/compiler'
 sources = sorted(runtime.glob('*.c')) + sorted(runtime.glob('*.s'))
 generator = runtime / 'compound.py'
+bit_runtime = runtime / 'bits'
+bit_generator = bit_runtime / 'bitops.py'
+bit_sources = sorted(bit_runtime.glob('*.s'))
 compiler = root / 'build/out/toolchain/sdcc-cpu6/bin/sdcc'
 assembler = root / 'build/out/toolchain/bin/asee200'
 flags = ['-mcpu6', '--std=c99', '--opt-code-' + args.profile]
@@ -31,6 +34,13 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
     compound = work / 'compound.s'
     subprocess.run([sys.executable, generator, compound], check=True)
     objects += assemble_members(compound, work, assembler, 'compound')
+    # Keep the existing archive member order and private-symbol namespaces.
+    # Bit operations are pulled independently by the ordinary archive linker.
+    for source in bit_sources:
+        objects += assemble_members(source, work, assembler, source.stem)
+    bitops = work / 'bitops.s'
+    subprocess.run([sys.executable, bit_generator, bitops], check=True)
+    objects += assemble_members(bitops, work, assembler, 'bitops')
     archive = work / 'libcompiler-sdcc.a'
     subprocess.run(['ar', 'qc', archive, *objects], check=True)
     with tempfile.TemporaryDirectory(prefix='.stage-', dir=destination) as stage:
@@ -38,5 +48,5 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
         shutil.copyfile(archive, staged)
         os.replace(staged, destination / archive.name)
     write_manifest(destination/archive.name, compiler_info(compiler),
-                   flags, input_hashes([*sources, generator]), profile=args.profile)
+                   flags, input_hashes([*sources, generator, *bit_sources, bit_generator]), profile=args.profile)
 print('Built', destination / archive.name)

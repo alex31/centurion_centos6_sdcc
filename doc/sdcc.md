@@ -118,6 +118,48 @@ fixups in CENTOS CBIN relocations and rescans the target archives to
 resolve their dependencies. The SDK builds `libcompiler-sdcc.a` and
 selects the required helpers on demand.
 
+### Bit operations
+
+The CPU6 compiler recognizes the GCC bit-operation builtins directly in
+C expressions. Use `__builtin_bswap16(x)` and `__builtin_bswap32(x)` to
+reverse bytes. The SDK also provides the spellings `bswap16(x)` and
+`bswap32(x)` through `<cpu6bits.h>`.
+
+```c
+#include <stdint.h>
+#include <cpu6bits.h>
+
+uint16_t network_word(uint16_t x) { return bswap16(x); }
+uint32_t rotate(uint32_t x, unsigned n) { return __builtin_stdc_rotate_left(x, n); }
+int first_set(uint16_t x) { return __builtin_ctzg(x, -1); }
+```
+
+| Builtin family | CPU6 behavior |
+| --- | --- |
+| `__builtin_` followed by `ffs`, `clz`, `ctz`, `clrsb`, `popcount` or `parity` | The unsuffixed form takes a 16-bit int or unsigned int. The suffixes `l` and `ll` select 32 and 64 bits. All return `int`. |
+| The same six names with suffix `g` | Use the precision of the argument before integer promotion. `ffsg` and `clrsbg` use a signed integer. The other four use an unsigned integer. |
+| `__builtin_stdc_*` | Provides `bit_ceil`, `bit_floor`, `bit_width`, `count_ones`, `count_zeros`, `has_single_bit`, `leading_ones`, `leading_zeros`, `trailing_ones`, `trailing_zeros`, all four `first_leading_*` / `first_trailing_*` positions, and `rotate_left` / `rotate_right`. |
+
+For a zero input, `ffs` and the four first-bit operations return zero (bit
+positions start at one). The classic `clz` and `ctz` leave the result
+undefined. Supply an `int` fallback to `clzg` or `ctzg` to choose that
+result. The `stdc_leading_zeros` and `stdc_trailing_zeros` builtins return
+the operand width on zero.
+Rotate counts must be nonnegative and are reduced modulo that width.
+The generic operations respect the declared width of integer bit-fields
+and also accept the port's 48-bit scalar types with
+`--native-int48`. The 64-bit builtin ABI passes `long long` values on the
+stack and returns wide results in `__cpu6_hi64` (top two words), `__hireg`
+and B. General-purpose 64-bit arithmetic remains limited on this target.
+[GCC bit-operation semantics](https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html)
+
+Literal arguments fold at compile time. Byte swaps and constant rotations
+of 8-, 16- and 32-bit operands use inline register operations where
+applicable. Other operations can call width-specific helpers. Each helper
+is a separate archive member in `libcompiler-sdcc.a`. A program that includes
+the header and uses none of the builtins pays zero bytes in code, tables or
+return-state storage, even with `--no-gc-sections`.
+
 ### Software binary32
 
 Enable with `run/cpu6-bare-sdcc --float32` or `run/cpu6-os6-sdcc --float32`.
