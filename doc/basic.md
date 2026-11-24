@@ -7,7 +7,7 @@ and a C version of the one-dimensional Life example for comparison.
 
 ## Start the REPL
 
-Boot the [application image](../image/README.md) in the JavaScript emulator
+Boot the [application image](../README.md#start-a-centos-session) in the JavaScript emulator
 and enter `BASIC` at the CENTOS prompt. This starts the job in the
 `SBASIC` library and loads the native module when required. After `.BYE`,
 enter `BASIC` again to reopen the REPL.
@@ -43,10 +43,13 @@ run/centurion-system build/out/basic/centos-basic.img
   as integers.
 - String variables use a `$` suffix and support up to 255 characters
   per string within a shared 4 KiB string store. The console supports
-  concatenation, comparisons and common string functions.
+  concatenation and comparisons. The functions include `LEN`, `ASC`,
+  `CHR$`, `LEFT$`, `RIGHT$`, `MID$`, `STR$` and `VAL`.
 - Structured control flow includes nested `FOR/NEXT` and `WHILE/WEND`.
   `DIM` defines numeric arrays. `DATA`, `READ` and `RESTORE` support
-  mixed numeric and string data.
+  mixed numeric and string data. `RESTORE n` selects the n-th value
+  starting at 1. The compiler allows eight nested loops across `FOR`
+  and `WHILE`.
 - `.EDIT` opens a line editor. `.LIST` pages through the program.
   `.DIR` lists numbered BASIC sources in alphabetical order, accepts
   quoted wildcard filters and pages long results. The pagers use Up
@@ -97,92 +100,19 @@ The comparison runs produced identical terminal output with the same
 inputs, including retries after invalid values.
 
 Use `.DIR` in BASIC for the installed programs. The upstream submodule
-holds the original listings for further porting. [Audit and remaining ports](basic-games-porting.md)
+holds the original listings for further porting.
 
-## Performance
 
-### One-dimensional Life
+## Memory and execution
 
-`LIFE1D` applies Jon Millen's B23/S24 rule to 69 cells. The `1DLIFE_CEN.BAS`
-listing linked in Usagi Electric's demonstration uses the same rule and width.
-It starts with `RND(1)`, updates the display with individual `CURSOR` and
-`PRINT` commands, and starts a fresh series after every 26 generations.
-[Rule reference](https://jonmillen.com/1dlife/index.html) · [Published source](https://github.com/Nakazoto/CenturionComputer/blob/8682b5865979315cf9e085e75ff8547ff3be473e/Software/New%20Software/1DLIFE_CEN.BAS) · [Video demonstration](https://www.youtube.com/watch?v=bpdYBsgYF_c&t=775s)
+The build reserves 5,632 bytes for tokenized program text, the line index,
+compiled bytecode and numeric arrays. Strings use a separate 4 KiB heap.
+The CPU stack is 1,536 bytes and the CENTOS mapped module has a 20 KiB
+budget. The REPL and editor share an overlay. The compiler and VM have
+their own overlays, and variables stay resident. The assembly dispatcher
+keeps instruction and value-stack pointers in registers and handles
+common bytecode operations directly. [Memory placement and overlays](mmu.md)
 
-The historical benchmark imported that source unchanged as the type A
-file `ZUELIFE` on a copy of a CENTOS 13 disk. The job `P.BASIC UELIFE 1 CRT0`
-compiled it with BCOM 6.03, with an empty library response.
-`.LOAD BASIC` loaded the CENTOS monitor and `.RUN XUELIFE` started the
-program. The emulator counted microsteps from the end of the initial
-frame to the end of the 26th update, including terminal rendering.
-An independent model checked the interior cells of each update.
-
-All three timings cover the end of the initial row to the end of the 26th
-update, at the CPU6's nominal 5 MHz rate.
-
-| Program | CPU6 microsteps | Time at 5 MHz |
-| --- | ---: | ---: |
-| `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
-| Distributed integer bytecode BASIC | 36,396,704 | 7.28 s |
-| Distributed C compiled by SDCC | 9,893,380 | 1.98 s |
-
-The historical row reports one full emulator run, with generation times
-between 28.79 and 29.45 s. The distributed C and BASIC programs use the
-same initial state and render identical rows. Their timings are medians
-of three runs with seed 1, with all 27 rows verified against an independent
-model. CENTOS scheduling can vary between bytecode BASIC runs even with the
-same seed. The original source uses its own random initial state and cursor
-commands, so the table compares complete implementations with rendering.
-The distributed BASIC program builds each row in `L$` and prints it in one statement.
-The C implementation evolves packed bitsets using lookup tables.
-[C implementation and measurements](sdcc.md#one-dimensional-life) · [BASIC source](../image/programs/life1d/life1d.bas)
-
-In an earlier BASIC development comparison with the same rule, seed and
-generation count, the integer kernel fell from 59.11 to 18.71 million
-microsteps, a 68% reduction. That test measured just the generation loop.
-The distribution's Life regression measures from the banner to the last
-row and excludes loading and compilation. [Port measurements](../swext/stefan-basic/CENTURION.md) · [Life regression](../image/README.md)
-
-### Real arithmetic and 8-bit BASIC references
-
-The Rugg/Feldman suite covers loops, arithmetic, subroutines, arrays and
-transcendental functions. The Ahl benchmark exercises square root, square
-and random-number generation. The CPU6 timings use the default real
-variables and count microsteps between two markers, after bytecode
-compilation. The benchmark validates the final values after the end marker.
-The C64 column gives published timings from *Practical Computing* and
-*Creative Computing*. [Benchmark sources and references](../tests/README.md#cpu6-regression-tests)
-
-| Workload | Centurion BASIC at 5 MHz | Commodore 64 BASIC |
-| --- | ---: | ---: |
-| BM1 | 0.65 s | 1.4 s |
-| BM2 | 2.38 s | 10.5 s |
-| BM3 | 7.54 s | 19.2 s |
-| BM4 | 8.65 s | 20.0 s |
-| BM5 | 9.42 s | 21.0 s |
-| BM6 | 17.70 s | 32.2 s |
-| BM7 | 25.27 s | 51.6 s |
-| BM8 | 67.81 s | 116.0 s |
-| Ahl | 24.69 s | 113 s |
-
-Across these workloads, the port is between 1.71 and 4.58 times as fast
-as the published C64 reference. BM8 remains the longest workload in the
-suite. The CPU6 run uses IEEE binary32 and the C64 figures describe its
-original BASIC arithmetic. [Exact microcycles and build revisions](sdcc-codegen-benchmarks.md#guest-execution)
-
-```sh
-make bench-basic BASIC_BENCHMARKS=all
-make bench-basic BASIC_BENCHMARKS=AHL
-node tests/basic-life.js build/out/image/centos-apps.img 3
-```
-
-## Implementation
-
-The distributed image reserves 5,632 bytes (5.5 KiB) for the tokenized
-program, its line index, compiled bytecode and numeric arrays. The string
-heap has a separate 4 KiB reservation. The CENTOS build keeps the REPL,
-editor, compiler, VM, text operations and mathematical routines in code
-overlays and a mapped module. The CPU6 dispatch loop has assembly fast paths for
-common bytecode operations. See
-[the Centurion BASIC port notes](../swext/stefan-basic/CENTURION.md) for
-the supported features and memory organization.
+Use `make basic` to build the executable, mapped module and overlays
+without installing them into a disk image. Use `make basic-image` for
+the installation and boot test. [BASIC benchmarks](performance.md#basic-benchmarks)
