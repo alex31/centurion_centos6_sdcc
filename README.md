@@ -2,7 +2,8 @@
 
 A source distribution of the SDCC cross-compiler for the Centurion CPU6,
 the EE200 assembler and linker, and a microcoded JavaScript emulator.
-The build is intended for Linux and WSL2.
+The project supports Ubuntu 24.04 LTS and 26.04 LTS on native Linux and
+under WSL2.
 
 I discovered the Centurion through Usagi Electric's videos. I was fascinated
 by his restoration series, and it made me want to port a C compiler to the
@@ -16,18 +17,19 @@ projects and their authors are credited below.
 
 ## Build
 
+The full C++ build has been tested on Ubuntu 24.04 and 26.04 in Linux
+environments and on Ubuntu 24.04 under WSL2.
+
 ### Optional setup for Windows 11 with WSL2
 
-On a Windows 11 PC, use Ubuntu 24.04 in WSL2 to build and run Centurion.
 If WSL reports that hardware virtualization is disabled, enable it in the
 PC's UEFI settings.
 
-**In PowerShell**, run the following from an administrator window to install
-WSL and Ubuntu 24.04.
+**In PowerShell**, run the command for your chosen Ubuntu release from an
+administrator window.
 
-```powershell
-wsl --install -d Ubuntu-24.04
-```
+- Ubuntu 24.04 LTS — `wsl --install -d Ubuntu-24.04`
+- Ubuntu 26.04 LTS — `wsl --install -d Ubuntu-26.04`
 
 Restart Windows if prompted. After signing back in, check the distribution
 and its WSL version.
@@ -36,11 +38,11 @@ and its WSL version.
 wsl -l -v
 ```
 
-If `Ubuntu-24.04` is missing from the list, rerun the install command. If
-Ubuntu shows version `1`, convert it with `wsl --set-version Ubuntu-24.04 2`.
-Use the distribution name shown by `wsl -l -v` if it differs. Open Ubuntu
-from the Start menu or run `wsl -d Ubuntu-24.04`. Choose a Linux username and
-password at the first launch.
+If your Ubuntu distribution is missing from the list, rerun its install
+command. If it shows version `1`, convert it with
+`wsl --set-version <distribution> 2`. Open Ubuntu from the Start menu or
+run `wsl -d <distribution>`. Replace `<distribution>` with the name shown
+by `wsl -l -v`. Choose a Linux username and password at the first launch.
 [Microsoft WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 **In Ubuntu**, prepare a directory in your Linux home for the checkout, then
@@ -251,17 +253,20 @@ with `FOR/NEXT` and `WHILE/WEND`. [BASIC guide and benchmark commands](doc/basic
 
 ## Performance
 
-- The SDCC C sieve produced all 1,229 primes through 9,973 in **9.62 s**,
+- The SDCC C sieve produced all 1,229 primes through 9,973 in **8.81 s**,
   including console output. The original CENTOS CPL sieve took **97.09 s**
   for the same primes. [Sieve measurements and compiler comparisons](doc/sdcc.md#prime-sieve)
 - The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with
   the same fixed seed and 27 output rows. From the first row to the last,
-  the C program took **1.98 s** and integer BASIC took **7.86 s**.
+  the C program took **1.98 s** and integer BASIC took **7.28 s**.
   Life1D took **12 min 38 s** for its first
   26 generations under CENTOS BASIC 6.03.
   [C Life1D](doc/sdcc.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/basic.md#performance)
 
 These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.
+The latest SDCC and runtime optimizations reduced microcycles by **18.42%**
+on average across 16 workloads. Each of the 64 measured CENTOS executables
+held its size or shrank. [Benchmark results](doc/sdcc-codegen-benchmarks.md)
 
 ## Upstream projects and credits
 

@@ -2,7 +2,8 @@
 
 The comparison starts at distribution revision `933f46c` and SDCC revision
 `e69c8e6a7`. Both builds use the same application sources, compiler flags,
-CENTOS seed and CPU6 microcode. The optimized SDCC revision is `abf0207e3`.
+CENTOS seed and CPU6 microcode. The optimized build uses distribution
+revision `28ba3f7` and SDCC revision `abf0207e3`.
 
 ## Instruction selection
 

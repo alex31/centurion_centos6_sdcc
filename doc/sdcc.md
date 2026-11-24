@@ -45,7 +45,7 @@ need banked memory or separately loaded code.
 
 ## Performance
 
-The measurements below count CPU6 microsteps in the JavaScript emulator.
+The measurements below count CPU6 microsteps in the microcoded emulator.
 Times use the nominal 5 MHz clock and the CENTOS console runs at 9,600 baud.
 For individual instruction timings, encoding sizes and addressing modes,
 see the [CPU6 cost table](cpu6-instruction-costs.md). The November 2026
@@ -65,10 +65,11 @@ following the prime output. [Distributed C source](../image/programs/sieve/sieve
 | Program | Kernel microsteps | Kernel at 5 MHz | Through the report at 5 MHz |
 | --- | ---: | ---: | ---: |
 | Original CPL `USAGI.XSIEVE` | 353,559,966 | 70.71 s | 97.09 s |
-| Optimized C `SDCC.XSIEVE` | 1,334,841 | 0.267 s | 9.62 s |
+| Optimized C `SDCC.XSIEVE` | 535,308 | 0.107 s | 8.81 s |
 
-The change in algorithm, storage layout and console formatting contributes
-to the roughly 10.1-fold improvement through the report. Earlier
+The optimized C run took 44,054,442 microcycles through the report. The
+algorithms, storage layouts and console formatting contribute to the
+roughly 11-fold difference through the report. Earlier
 development runs also built the same C sources at `-O1` with Alan Cox's
 Fuzix C compiler (FCC) and the SDCC CPU6 port. Each row below compares
 the kernel for one source revision under both compilers.
@@ -90,8 +91,8 @@ the end of the last row. [Rule reference](https://jonmillen.com/1dlife/index.htm
 
 | Program | Microsteps | Time at 5 MHz |
 | --- | ---: | ---: |
-| C compiled by SDCC | 9,893,516 | 1.98 s |
-| Integer bytecode BASIC | 39,297,964 | 7.86 s |
+| C compiled by SDCC | 9,893,380 | 1.98 s |
+| Integer bytecode BASIC | 36,396,704 | 7.28 s |
 
 An earlier controlled C kernel measurement compared the same 26 updates
 with and without the packed-table optimization. The cost fell from
@@ -104,14 +105,15 @@ using the listing linked in Usagi Electric's demonstration. [Historical Life1D c
 #### CENTOS scheduling in the bytecode BASIC benchmark
 
 The bytecode `LIFE1D` benchmark times the interval from the printed title
-through the final board and checks all 27 rows. In two image builds the
-unmodified benchmark took 34,492,322 and 37,128,959 microcycles. Both
-executed 649 application checkpoints (SVC 7). On entry to a system call,
+through the final board and checks all 27 rows. With ordinary scheduling,
+the baseline and optimized builds took medians of 34,504,742 and
+37,049,195 microcycles. On entry to a system call,
 CENTOS compares a task timestamp at offset `0x59` with the low byte of the
-level-10 clock register Z. In the slower run, the check at `0x1093` took
-the path through `0x10A0`, which invokes the scheduler before SVC 7
-itself yields. This restores the same task's MMU mappings twice per
-checkpoint. [Benchmark and board oracle](../tests/basic-life.js)
+level-10 clock register Z. When the values match, the check at `0x1093`
+takes the path through `0x10A0`, which invokes the scheduler before the
+application checkpoint (SVC 7) itself yields. This restores the same
+task's MMU mappings twice per checkpoint.
+[Benchmark and board oracle](../tests/basic-life.js)
 
 For a controlled comparison, the JavaScript microcoded core set the task
 timestamp once, at the first measured syscall check, to the clock value
@@ -119,10 +121,12 @@ plus the indicated offset. The clock interrupt stayed idle throughout the
 timed interval. Each cell is one execution in microcycles with the same
 program, seed and board oracle. The image IDs come from the BASIC manifests.
 
-| Task timestamp | BASIC image `7723160E` | BASIC image `D19F5B06` |
+| Task timestamp | Baseline BASIC image `7723160E` | Optimized BASIC image `01702D04` |
 | --- | ---: | ---: |
-| Clock + 0 | 37,100,164 | 37,142,519 |
-| Clock + 3 | 34,492,322 | 34,436,661 |
+| Clock + 0 | 37,100,164 | 37,058,579 |
+| Clock + 3 | 34,492,322 | 34,455,429 |
+
+The optimized image used about 0.11% fewer microcycles at each matched phase.
 
 ## Verification and sources
 

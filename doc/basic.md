@@ -123,14 +123,15 @@ update, at the CPU6's nominal 5 MHz rate.
 | Program | CPU6 microsteps | Time at 5 MHz |
 | --- | ---: | ---: |
 | `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
-| Distributed integer bytecode BASIC | 39,297,964 | 7.86 s |
-| Distributed C compiled by SDCC | 9,893,516 | 1.98 s |
+| Distributed integer bytecode BASIC | 36,396,704 | 7.28 s |
+| Distributed C compiled by SDCC | 9,893,380 | 1.98 s |
 
 The historical row reports one full emulator run, with generation times
 between 28.79 and 29.45 s. The distributed C and BASIC programs use the
 same initial state and render identical rows. Their timings are medians
 of three runs with seed 1, with all 27 rows verified against an independent
-model. The original source uses its own random initial state and cursor
+model. CENTOS scheduling can vary between bytecode BASIC runs even with the
+same seed. The original source uses its own random initial state and cursor
 commands, so the table compares complete implementations with rendering.
 The distributed BASIC program builds each row in `L$` and prints it in one statement.
 The C implementation evolves packed bitsets using lookup tables.
@@ -154,20 +155,20 @@ The C64 column gives published timings from *Practical Computing* and
 
 | Workload | Centurion BASIC at 5 MHz | Commodore 64 BASIC |
 | --- | ---: | ---: |
-| BM1 | 1.25 s | 1.4 s |
-| BM2 | 4.63 s | 10.5 s |
-| BM3 | 13.56 s | 19.2 s |
-| BM4 | 15.31 s | 20.0 s |
-| BM5 | 16.22 s | 21.0 s |
-| BM6 | 29.69 s | 32.2 s |
-| BM7 | 38.75 s | 51.6 s |
-| BM8 | 107.99 s | 116.0 s |
-| Ahl | 36.70 s | 113 s |
+| BM1 | 0.65 s | 1.4 s |
+| BM2 | 2.38 s | 10.5 s |
+| BM3 | 7.54 s | 19.2 s |
+| BM4 | 8.65 s | 20.0 s |
+| BM5 | 9.42 s | 21.0 s |
+| BM6 | 17.70 s | 32.2 s |
+| BM7 | 25.27 s | 51.6 s |
+| BM8 | 67.81 s | 116.0 s |
+| Ahl | 24.69 s | 113 s |
 
-Across these workloads, the port is between 1.07 and 3.08 times as fast
+Across these workloads, the port is between 1.71 and 4.58 times as fast
 as the published C64 reference. BM8 remains the longest workload in the
 suite. The CPU6 run uses IEEE binary32 and the C64 figures describe its
-original BASIC arithmetic.
+original BASIC arithmetic. [Exact microcycles and build revisions](sdcc-codegen-benchmarks.md#guest-execution)
 
 ```sh
 make bench-basic BASIC_BENCHMARKS=all

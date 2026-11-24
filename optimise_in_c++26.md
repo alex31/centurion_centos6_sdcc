@@ -2,9 +2,10 @@
 
 ## Contexte et mesures de référence
 
-Sur AMD Ryzen 9 5950X avec `g++-15` (`-O3 -flto`), les performances actuelles sont :
+Les mesures de référence du plan ont été relevées sur un AMD Ryzen 9 5950X
+avec `g++-15` (`-O3 -flto`), avant les optimisations de l’émulateur.
 
-| Scénario | Commande | Débit actuel |
+| Scénario | Commande | Débit de référence |
 |---|---|---|
 | Cœur CPU6 seul (JS vs C++) | `python3 tests/compare-emulator-cores.py --rounds 1 --cycles 50000000` | JS **16,13 M** microcycles/s, C++ **46,84 M** microcycles/s (**2,90×**, ~107 cycles hôtes/microcycle) |
 | Machine complète (boot Hawk + CENTOS) | `time ./build/out/emulator-cpp/cpp-hawk-boot build/out/emulator/firmware.json swext/centurion-js/src/firmware-spec.json build/out/image/centos-apps.img` | **25,9 M** microcycles/s (27,1 M microsteps en 1,044 s) |
