@@ -11,3 +11,7 @@ mkdir -p "$output" "$output/server/disks"
 cp "$source/package.json" "$source/package-lock.json" "$output/"
 npm --prefix "$output" ci --include=dev --ignore-scripts --no-audit --no-fund
 node "$source/build.cjs" "$output"
+# The JavaScript core looks for the pack next to its generated js directory.
+if [ ! -e "$output/firmware.json" ] && [ ! -L "$output/firmware.json" ]; then
+    ln -s ../../inputs/firmware.json "$output/firmware.json"
+fi

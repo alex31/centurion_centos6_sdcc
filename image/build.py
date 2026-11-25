@@ -10,7 +10,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/out/image'
-DEFAULT_SEED = OUT / 'CENTOS_13.IMG'
+DEFAULT_SEED = ROOT / 'build/inputs/CENTOS_13.IMG'
 BASIC = ROOT / 'swext/stefan-basic/centos'
 SDK = ROOT / 'run/cpu6-os6-sdcc'
 DEFAULT_OUTPUT = OUT / 'centos-apps.img'
@@ -24,8 +24,8 @@ SEED_BYTES = 6651904
 def ensure_seed(seed):
     if not seed.is_file():
         raise FileNotFoundError(
-            f'CENTOS seed image not found: {seed}. Supply your local copy with '
-            'SEED=/path/to/CENTOS_13.IMG.'
+            f'CENTOS seed image not found: {seed}. Copy it to {DEFAULT_SEED} '
+            'or set SEED=/path/to/CENTOS_13.IMG.'
         )
     if seed.stat().st_size != SEED_BYTES:
         raise ValueError('The application image requires a 512-byte-stride CENTOS seed')

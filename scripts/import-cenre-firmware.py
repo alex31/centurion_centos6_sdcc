@@ -9,7 +9,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = ROOT / 'swext/centurion-js/src/firmware-spec.json'
-DEFAULT_OUTPUT = ROOT / 'build/out/emulator/firmware.json'
+DEFAULT_OUTPUT = ROOT / 'build/inputs/firmware.json'
 LITERAL = re.compile(r'(?:\bconst\s+(\w+)\s*=|\b(\w+)\s*:)\s*bload\(\s*`(.*?)`\s*\)', re.S)
 
 

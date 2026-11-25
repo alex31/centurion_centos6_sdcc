@@ -39,7 +39,7 @@ function checkRegressions(report, expected) {
 
 async function nativeJobs(image) {
     const {stdout: result} = await exec(path.join(built, 'emulator-cpp/cpp-hawk-boot'), [
-        process.env.CENTURION_FIRMWARE || path.join(built, 'emulator/firmware.json'),
+        process.env.CENTURION_FIRMWARE || path.join(root, 'build/inputs/firmware.json'),
         path.join(root, 'swext/centurion-js/src/firmware-spec.json'), image, '--apps',
     ], {encoding: 'utf8', timeout: 120000});
     return parseJobs(result);

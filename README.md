@@ -62,29 +62,39 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-Download the pinned upstream CenRE `src/cen.ts` locally and extract its firmware tables. Keep the downloaded file, extracted ROMs and firmware-derived build products in `build/out/`, which Git ignores.
+Download the pinned upstream CenRE `src/cen.ts` locally and extract its firmware tables. The importer writes `build/inputs/firmware.json` by default.
 
 ```
-mkdir -p build/out/firmware-source
-curl -fL -o build/out/firmware-source/cen.ts \
+mkdir -p build/inputs
+curl -fL -o build/inputs/cen.ts \
   https://raw.githubusercontent.com/billsargent/centurion/2bf355026e3f5d4ebdf51138088b9499ccb31b09/src/cen.ts
-python3 scripts/import-cenre-firmware.py build/out/firmware-source/cen.ts
+python3 scripts/import-cenre-firmware.py build/inputs/cen.ts
 ```
 
-Supply a 512-byte-stride `CENTOS_13.IMG` Hawk image. See the Centurion archive's instructions for obtaining a system image. [Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+Copy a 512-byte-stride Hawk image to `build/inputs/CENTOS_13.IMG`. See the Centurion archive's instructions for obtaining a system image. [Centurion software archive](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
+
+```
+cp /path/to/CENTOS_13.IMG build/inputs/
+```
+
+For an existing checkout, move your local seed and firmware pack from
+`build/out/image/CENTOS_13.IMG` and `build/out/emulator/firmware.json`
+to `build/inputs/` before cleaning the build. Git ignores both
+`build/inputs/` and `build/out/`. Use `make clean` to delete the generated
+files in `build/out/` and keep the local inputs.
 
 Build the compilers, emulator, applications and bootable CENTOS image.
 
 ```
-./dobuild -j2 JOBS=4 SEED=/path/to/CENTOS_13.IMG
+./dobuild -j2 JOBS=4
 ```
 
 For example, to test the native build in WSL2 with a seed saved in Windows Downloads, run the following in Ubuntu from the project root after importing the firmware. Replace `YOUR_WINDOWS_USER` with your Windows username.
 
 ```
-mkdir -p build/out/image
-cp "/mnt/c/Users/YOUR_WINDOWS_USER/Downloads/CENTOS_13.IMG" build/out/image/
-./dobuild -j4 JOBS=4 CENTURION_OS6_BACKEND=cpp SEED="$PWD/build/out/image/CENTOS_13.IMG"
+mkdir -p build/inputs
+cp "/mnt/c/Users/YOUR_WINDOWS_USER/Downloads/CENTOS_13.IMG" build/inputs/
+./dobuild -j4 JOBS=4 CENTURION_OS6_BACKEND=cpp
 ```
 
 `dobuild` shows its five stages and a time estimate for a clean C++ build. The terminal keeps the current stage visible below the build output. Log files and CI output show a plain-text message at each stage change.
@@ -93,7 +103,10 @@ cp "/mnt/c/Users/YOUR_WINDOWS_USER/Downloads/CENTOS_13.IMG" build/out/image/
 
 The native build uses GCC 13 or newer and the Node-API headers. Set `NODE_CPPFLAGS=-I/path/to/include/node` if your Node.js installation provides headers elsewhere. Set `CENTURION_OS6_BACKEND=javascript` to select JavaScript directly, or `CENTURION_OS6_BACKEND=cpp` to require the native build.
 
-The generated image is `build/out/image/centos-apps.img`. The firmware import writes `build/out/emulator/firmware.json` by default. To use another location, pass `--output` to the import script and set `CENTURION_FIRMWARE` when running the emulator or its tests.
+The generated image is `build/out/image/centos-apps.img`. To use inputs
+stored elsewhere, set `SEED=/path/to/CENTOS_13.IMG` for the build and export
+`CENTURION_FIRMWARE=/path/to/firmware.json` for the build, emulator and
+tests. The firmware import script accepts `--output` for a custom location.
 
 Use `make sdk` to build the compiler tools and emulator alone. The build also initializes the required submodules after a plain clone. Run `make check` for a quick check after importing the firmware, `make tests` for regressions on both emulators or `make alltests` for the extended suite. [Test guide](doc/sdcc.md#verification)
 

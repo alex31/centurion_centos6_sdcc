@@ -51,7 +51,7 @@ def main():
     if args.rounds < 1 or args.cycles < 1 or args.realtime_cycles < 0:
         parser.error('cycles and rounds must be positive')
 
-    firmware = Path(os.environ.get('CENTURION_FIRMWARE') or OUT / 'emulator/firmware.json')
+    firmware = Path(os.environ.get('CENTURION_FIRMWARE') or ROOT / 'build/inputs/firmware.json')
     pin = [] if args.cpu is None else ['taskset', '-c', str(args.cpu)]
     with tempfile.TemporaryDirectory(prefix='centurion-core-') as directory:
         binary = Path(directory) / 'life.bin'

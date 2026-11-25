@@ -1,10 +1,11 @@
 .DEFAULT_GOAL := sdk
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 OUT := $(ROOT)/build/out
-SEED ?= $(OUT)/image/CENTOS_13.IMG
+INPUTS := $(ROOT)/build/inputs
+SEED ?= $(INPUTS)/CENTOS_13.IMG
 JOBS ?= 4
 PYTHON ?= python3
-FIRMWARE_JSON ?= $(if $(CENTURION_FIRMWARE),$(abspath $(CENTURION_FIRMWARE)),$(OUT)/emulator/firmware.json)
+FIRMWARE_JSON ?= $(if $(CENTURION_FIRMWARE),$(abspath $(CENTURION_FIRMWARE)),$(INPUTS)/firmware.json)
 
 .PHONY: all sdk submodules toolchain emulator emulator-cpp-sources emulator-cpp emulator-cpp-headless basic basic-image clean
 all: apps-image

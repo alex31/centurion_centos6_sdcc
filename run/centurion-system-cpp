@@ -2,7 +2,7 @@
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 server="$root/build/out/emulator-cpp/centurion-emulator"
-firmware="${CENTURION_FIRMWARE:-$root/build/out/emulator/firmware.json}"
+firmware="${CENTURION_FIRMWARE:-$root/build/inputs/firmware.json}"
 spec="$root/swext/centurion-js/src/firmware-spec.json"
 web="$root/swext/centurion-js/web"
 case "${1-}" in

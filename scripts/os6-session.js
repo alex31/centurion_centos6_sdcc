@@ -145,7 +145,7 @@ class NativeSession extends Session {
         super();
         this.binding = require(path.join(root, 'build/out/emulator-cpp/centurion-headless.node'));
         this.handle = this.binding.open(
-            process.env.CENTURION_FIRMWARE || path.join(root, 'build/out/emulator/firmware.json'),
+            process.env.CENTURION_FIRMWARE || path.join(root, 'build/inputs/firmware.json'),
             path.join(root, 'swext/centurion-js/src/firmware-spec.json'), path.resolve(diskPath));
     }
 

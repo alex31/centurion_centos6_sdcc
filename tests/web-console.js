@@ -50,7 +50,7 @@ async function launchNative() {
     const root = path.resolve(__dirname, '..');
     const sources = path.join(root, 'swext/centurion-js');
     nativeServer = spawn(path.join(root, 'build/out/emulator-cpp/centurion-emulator'), [
-        process.env.CENTURION_FIRMWARE || path.join(built, 'firmware.json'),
+        process.env.CENTURION_FIRMWARE || path.join(root, 'build/inputs/firmware.json'),
         path.join(sources, 'src/firmware-spec.json'), path.join(sources, 'web'),
     ], {
         env: {...process.env, CENTURION_BIND: '127.0.0.1', CENTURION_WEB_PORT: String(port),

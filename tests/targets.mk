@@ -46,7 +46,7 @@ tests-finch: sdk
 tests-emulator-cpp: emulator-cpp
 	@mkdir -p "$(TEST_OUT)" && work=$$(mktemp -d "$(TEST_OUT)/emulator-cpp.XXXXXX") && \
 		trap 'rm -rf -- "$$work"' EXIT && \
-		firmware="$${CENTURION_FIRMWARE:-$(OUT)/emulator/firmware.json}" && \
+		firmware="$${CENTURION_FIRMWARE:-$(INPUTS)/firmware.json}" && \
 		spec="$(ROOT)/swext/centurion-js/src/firmware-spec.json" && \
 		"$(ROOT)/run/cpu6-bare-sdcc" --gc-sections "$(TESTS)/cmd-mmio.c" -o "$$work/cmd.bin" && \
 		"$(OUT)/emulator-cpp/cpp-peripherals-probe" "$$firmware" "$$spec" "$$work/cmd.bin" && \
