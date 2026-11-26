@@ -1,11 +1,11 @@
 [submodule "swext/sdcc"]
 	path = swext/sdcc
-	url = ../centurion-sdcc-port-private.git
+	url = ../centurion-sdcc-port.git
 	branch = centurion_cpu6
 	shallow = true
 [submodule "swext/fuzix-bintools"]
 	path = swext/fuzix-bintools
-	url = ../centurion-bintools-private.git
+	url = ../centurion-bintools.git
 	branch = neon_fixes
 	shallow = true
 [submodule "swext/libee200"]
@@ -16,17 +16,17 @@
 	update = none
 [submodule "swext/centurion-js"]
 	path = swext/centurion-js
-	url = ../centurion-js-private.git
+	url = ../centurion-js.git
 	branch = docs/consolidation
 	shallow = true
 [submodule "swext/stefan-basic"]
 	path = swext/stefan-basic
-	url = ../centurion-stefan-basic-private.git
+	url = ../centurion-stefan-basic.git
 	branch = centurion_cpu6
 	shallow = true
 [submodule "swext/centurion-c"]
 	path = swext/centurion-c
-	url = ../centurion-c-private.git
+	url = ../centurion-c.git
 	branch = neon_fixes
 	shallow = true
 [submodule "swext/mcu-max"]

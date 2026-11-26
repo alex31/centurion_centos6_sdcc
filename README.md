@@ -47,14 +47,14 @@ sudo apt install nodejs libnode-dev
 
 The native build works with the GCC 13 and Node.js 18 packages on Ubuntu 24.04. For the JavaScript fallback and `make sdk`, use Node.js 20 or newer with npm in the Linux shell. If your distribution ships an older version, install a current LTS release inside Linux and check `node --version` and `npm --version`. [Node.js downloads](https://nodejs.org/en/download)
 
-Clone the distribution and its pinned source dependencies. The required SDCC, Bintools, JavaScript emulator, C instruction emulator and Stefan BASIC forks currently require GitHub credentials with read access.
+Clone the public distribution and its pinned source dependencies over HTTPS.
 
 ```
 git clone --recurse-submodules https://github.com/alex31/centurion_centos6_sdcc.git
 cd centurion_centos6_sdcc
 ```
 
-For an existing checkout, synchronize the submodule URLs after pulling so Git can fetch the pinned revisions from the private copies.
+For an existing checkout, synchronize the submodule URLs after pulling so Git can fetch the pinned revisions from the public forks.
 
 ```
 git pull --no-recurse-submodules
