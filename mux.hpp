@@ -41,7 +41,7 @@ private:
     };
 
     void check_transmit(unsigned index);
-    void interrupt() noexcept;
+    void set_pending(bool active) noexcept;
     std::array<Port, 4> ports_ {};
     unsigned level_ {}, transmit_interrupts_ {};
     bool enabled_ {}, pending_ {}, cause_ {};

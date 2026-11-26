@@ -19,7 +19,7 @@ constexpr std::array masks { 0x1f, 0x3f, 0x7f, 0xff };
 void Mux::reset()
 {
     enabled_ = pending_ = cause_ = false;
-    level_ = 0;
+    level_ = transmit_interrupts_ = 0;
     drive_irq(0);
     for (auto& port : ports_) {
         port.write_busy = port.read_busy = port.overrun = false;
@@ -36,10 +36,10 @@ void Mux::acknowledge()
     drive_irq(0);
 }
 
-void Mux::interrupt() noexcept
+void Mux::set_pending(bool active) noexcept
 {
-    pending_ = cause_ = true;
-    drive_irq(enabled_ ? level_ : 0);
+    pending_ = cause_ = active;
+    drive_irq(enabled_ && active ? level_ : 0);
 }
 
 void Mux::bind(unsigned port, Transmit transmit, bool cts)
@@ -58,7 +58,7 @@ void Mux::receive(unsigned index, std::uint8_t byte)
     port.overrun |= port.read_busy;
     port.read_buffer = byte & masks[port.character_width];
     port.read_busy = true;
-    interrupt();
+    set_pending(true);
 }
 
 void Mux::check_transmit(unsigned index)
@@ -71,7 +71,7 @@ void Mux::check_transmit(unsigned index)
     if (port.transmit)
         port.transmit(port.write_buffer & masks[port.character_width]);
     transmit_interrupts_ |= 1u << index;
-    interrupt();
+    set_pending(true);
 }
 
 void Mux::advance_transmit()
@@ -87,25 +87,32 @@ std::uint8_t Mux::read(unsigned address)
 {
     if (address < 8) {
         auto& port = ports_[address >> 1];
-        if (transmit_interrupts_)
-            interrupt();
         if (!(address & 1)) {
+            if (transmit_interrupts_)
+                set_pending(true);
             return (port.write_busy ? 0 : 2) | (port.read_busy ? 1 : 0) | (port.overrun ? 16 : 0)
                 | (port.cts ? 32 : 0);
         }
         port.read_busy = port.overrun = false;
+        set_pending(transmit_interrupts_ || std::ranges::any_of(ports_, &Port::read_busy));
         return std::exchange(port.read_buffer, 0);
     }
-    if (address != 15 || !std::exchange(cause_, false))
+    if (address != 15)
         return 0;
+    // The Centurion C emulator returns 0xff for an idle cause register (RX0 is zero).
+    if (!std::exchange(cause_, false))
+        return 0xff;
     for (unsigned index = 0; index < ports_.size(); ++index) {
         if (ports_[index].read_busy)
             return index << 1;
     }
     if (!transmit_interrupts_)
-        return 0;
+        return 0xff;
     const auto index = std::countr_zero(transmit_interrupts_);
     transmit_interrupts_ &= transmit_interrupts_ - 1;
+    // Completions on one UART share a bit, even when one arrives between
+    // CPU acknowledge and this read. Only other unserviced bits need an IRQ.
+    set_pending(transmit_interrupts_ != 0);
     return (index << 1) | 1;
 }
 
@@ -135,7 +142,8 @@ void Mux::write(unsigned address, std::uint8_t value)
     case 10: level_ = value & 15; break;
     case 12:
         transmit_interrupts_ |= value & 15;
-        interrupt();
+        if (value & 15)
+            set_pending(true);
         break;
     case 13: enabled_ = false; break;
     case 14: enabled_ = true; break;
