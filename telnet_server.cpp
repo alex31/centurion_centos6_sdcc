@@ -91,6 +91,7 @@ public:
     CrtRenderer renderer;
     std::string panel_frame;
     std::vector<std::filesystem::path> selected_disk_files;
+    bool ejecting {};
     bool help {};
     bool show_microcode {};
 
@@ -404,6 +405,7 @@ struct TelnetServer::Impl {
     void disk_menu(Peer& peer, bool detailed = false)
     {
         peer.selected_disk_files.clear();
+        peer.ejecting = false;
         std::string text(clear);
         text += "  CENTURION CPU-6  |  Disk Management\r\n\r\n";
         const auto describe = [&](unsigned disk, const auto* image, unsigned stride) {
@@ -468,9 +470,19 @@ struct TelnetServer::Impl {
     void disk_key(Peer& peer, std::uint8_t key)
     {
         if (key >= '0' && key <= '7') {
-            mount_disk(peer, key - '0');
+            const unsigned slot = key - '0';
+            if (peer.ejecting) {
+                if (slot < 2)
+                    runtime.machine.hawk.eject(slot);
+                else if (slot == 2)
+                    runtime.machine.finch.eject();
+                disk_menu(peer);
+            } else {
+                mount_disk(peer, slot);
+            }
             return;
         }
+        peer.ejecting = false;
         switch (std::tolower(key)) {
         case 'm': disk_menu(peer); break;
         case 'i': disk_menu(peer, true); break;
@@ -491,10 +503,9 @@ struct TelnetServer::Impl {
                       "  Create a disk image in the disks directory and select [L]oad.\r\n");
             break;
         case 'u':
-            for (unsigned unit = 0; unit < 2; ++unit)
-                runtime.machine.hawk.eject(unit);
-            runtime.machine.finch.eject();
             disk_menu(peer);
+            peer.ejecting = true;
+            peer.send("Select the drive to unmount, or press M to cancel.\r\n");
             break;
         case 'q':
             peer.send("\x1b[?25hDisconnecting...\r\n");
