@@ -5,6 +5,24 @@ relocatable CENTOS `.exf` executable. It uses the CPU6 SDCC backend,
 Fuzix-Bintools and the CENTOS C startup and runtime. Use `run/sdcc` for
 direct access to the compiler frontend.
 
+## What the CPU6 port adds
+
+The distribution pins a CPU6 fork of SDCC based on upstream SVN r17105.
+Run `run/sdcc --version` to identify the installed compiler and
+`run/sdcc --help` for the frontend options, including `--cpu6-*` options.
+The target-specific source lives in `swext/sdcc/sdcc/src/cpu6`.
+[Upstream source revisions](../LICENSE.md#source-provenance)
+
+| Component | CPU6 support |
+| --- | --- |
+| SDCC backend | Big-endian CPU6 code generation, 16-bit `int` and pointers, 32-bit `long`, the stack ABI and optional A/B register arguments, C99 bit-fields and operand-aware inline assembly |
+| Optional types and builtins | Software `float` (binary32), native signed and unsigned `_BitInt(48)`, and GCC-style bit-operation builtins |
+| SDK drivers and EE200 tools | Assemble and link CPU6 objects into CENTOS `.exf` or bare-metal `.bin`, inline eligible calls across translation units with `--lto`, and remove unreachable functions and data with `--gc-sections` |
+
+The SDK drivers select C99 and define `__cpu6__` and `__ee200__`.
+`run/cpu6-os6-sdcc` also defines `__CPU6_OS6__` for code that uses CENTOS
+services. [Frontend options](../swext/sdcc/sdcc/src/cpu6/main.c)
+
 ## Compile and run an application
 
 ```sh
@@ -30,10 +48,13 @@ the compiler regression job. [Application image contents](../README.md#centos-ap
 | Option | Effect |
 | --- | --- |
 | `-c` | Compile one C or assembly source into an object for separate linking |
-| `-O0`, `-O1`, `-Os` | Select stack-based, speed or size code generation |
+| `-O0`, `-O1`, `-Os` | Select stack-based, speed or size code generation. The default is `-O1` |
 | `--lto` | Enable link-time optimization across eligible C units |
-| `--gc-sections` | Discard unreachable sections when linking |
-| `--stack-size N` | Reserve `N` bytes for the CENTOS C stack. The default is 1,024 |
+| `--gc-sections` | Discard unreachable functions and data when linking. Section pruning is off by default |
+| `--gc-keep SYMBOL` | Retain an exported symbol as a link root. Repeat for additional symbols |
+| `--map FILE`, `--save-temps DIR` | Save the link map or keep intermediate files in a directory |
+| `--no-peep`, `--sdcc-option=OPTION` | Disable peephole optimization or pass an additional option to SDCC |
+| `--stack-size N` | Reserve 256 to 8,192 bytes for the CENTOS C stack. The default is 1,024 |
 | `--float32` | Enable software IEEE-754 single precision |
 | `--native-int48` | Enable the CPU6 port's optional 48-bit integer support |
 
@@ -94,6 +115,30 @@ The format used by the driver has 29 sectors per track.
 `make tests-finch` formats a scratch track, reads and replaces a sector, and
 verifies that adjacent data is preserved on the microcoded emulator.
 The filesystem format and boot files are separate parts of a bootable disk.
+
+## Libraries supplied by the SDK
+
+The build generates these archives beneath `build/out/toolchain/lib/`.
+Both SDK drivers supply the archives for their target automatically. The
+linker pulls the members needed to resolve references. `--gc-sections`
+can further prune unreachable code and data inside linked objects.
+
+| Archive | Target | Contents and public headers |
+| --- | --- | --- |
+| `cpu6/libcompiler-sdcc.a` | Both | Arithmetic and bit-operation helpers used by the compiler. Shared memory, string and utility functions in `<string.h>`, `<stdlib.h>` and `<errno.h>` |
+| `cpu6/libint48-sdcc.a` | Both | Six-byte integer pointer API and helpers for optional native scalars. `<int48.h>` |
+| `cpu6/libfloat32-sdcc.a` | Both with `--float32` | Software binary32 and single-precision math. `<float.h>` and `<math.h>` |
+| `cpu6/libbaremetal-sdcc.a` | Bare metal | Finch disk I/O and DMA, polled `getchar()` and `exit()`. `<system_finch.h>`, `<stdio.h>` and `<stdlib.h>` |
+| `os6/libos6.a` | CENTOS | Console, files, executable blocks, clock and cooperative scheduling. `<stdio.h>`, `<os6_curses.h>`, `<os6file.h>`, `<os6exf.h>`, `<time.h>` and `<os6.h>` |
+| `os6/libprintf-sdcc.a` | CENTOS | CENTOS formatter and buffered console output. `<stdio.h>` |
+| `os6/liboverlay-sdcc.a` | CENTOS | Loader and dispatcher for C overlays. `<os6overlay.h>` |
+
+The drivers also supply the startup code and basic console output for
+their target. The shared library APIs cover the functions described below.
+Heap allocation and hosted C streams are outside the supplied API.
+The CENTOS disk library `SDCC` contains applications and tests. The
+compile-time archives in this table live on the build host.
+[Driver link inputs](../run/cpu6-sdcc) · [C overlays](mmu.md#c-overlays)
 
 ## Memory and strings
 
@@ -167,6 +212,58 @@ character returns `OS6_LINE_INVALID`. A line exceeding the available
 space returns `OS6_LINE_TOO_LONG`. In either case the function consumes
 the line and sets the destination to an empty string before the next read.
 
+### CENTOS text output
+
+`<stdio.h>` provides `putchar()` and `puts()` on both targets. CENTOS also
+provides `printf()` with `%s`, `%c`, `%d`, `%u`, `%x`, `%ld`, `%lu`, `%lx`
+and `%%`. Integer conversions take 16-bit arguments or 32-bit arguments
+with `l`. Field width, precision, flags and floating-point conversions
+are outside this formatter's interface. `os6_printf_buffered(1)` batches
+writes across calls. Flush with `os6_printf_flush()` before mixing output
+with `putchar()` or `puts()`, or before reading from the console.
+
+### Screen control and single keystrokes on CENTOS
+
+Include `<os6_curses.h>` and call `os6_curses_init()` with
+`OS6_CURSES_VT100`, `OS6_CURSES_ADDS_REGENT_100`, or `OS6_CURSES_AUTO`.
+In auto mode the library sends the VT100 Device Attributes and ADDS Read
+Status requests. If neither returns a recognized response, press `V` for
+VT100, `A` for ADDS, or Enter for VT100. The CENTOS console read waits for
+input. `os6_curses_select()` presents all three choices interactively.
+
+Use `os6_curses_move(row, column)` for one-based positioning on the 24×80
+screen and `os6_curses_clear()`, `os6_curses_eol()`, and
+`os6_curses_reverse()` for display control. Write text with the usual
+console functions. `os6_curses_column()` positions within the current row
+using horizontal addressing on ADDS and CSI G on VT100-compatible emulators.
+
+`os6_read_key()` reads one key without waiting for Enter. CENTOS still
+echoes the keystroke. `os6_curses_getch()` decodes cursor-key sequences
+and returns `OS6_KEY_*` values above the ASCII range. Use
+`os6_curses_keypad(1)` before reading VT100 arrow keys and `os6_curses_end()`
+when leaving the screen. Use `os6_read_key()` to read a standalone Escape.
+CENTOS may report the ADDS Left key and Backspace as the same native key
+code. The library returns Backspace in that case.
+
+### CENTOS files and executable blocks
+
+Include `<os6file.h>` for sequential binary I/O. Allocate a `FILE_OS6` and
+open an existing root file with `os6_fopen(&file, name, unit, mode)` using
+`OS6_READ` or `OS6_WRITE`. One file may be open at a time.
+`os6_fread_sector()` and `os6_fwrite_sector()` each transfer one
+`OS6_RECORD_SIZE`-byte record (256 bytes). CENTOS uses 400-byte physical
+sectors. Finish with `os6_fclose()`. A zero result means success. Check a
+nonzero result before using the data or advancing the application.
+[Sequential file declarations](../os6/include/os6file.h)
+
+Include `<os6exf.h>` for block writes to an existing type E file. First
+assign the file to a logical unit. `os6_exf_begin(unit)` sets the position to
+block zero. `os6_exf_write()` takes an `OS6_EXF_BLOCK` with its `length` set
+to `OS6_EXF_SECTOR_SIZE` (400 bytes). One writer is supported and successful
+writes advance its position. [EXF declarations](../os6/include/os6exf.h)
+
+### CENTOS clock
+
 The CENTOS `<time.h>` provides `time()` and an unsigned 32-bit `time_t`
 counting seconds since 1970-01-01, using the configured system clock.
 CENTOS stores a two-digit year. The SDK interprets years 70–99 as
@@ -195,6 +292,24 @@ indexed forms of `MUL` and `DIV`. The linker preserves big-endian word
 fixups in CENTOS CBIN relocations and rescans the target archives to
 resolve their dependencies. The SDK builds `libcompiler-sdcc.a` and
 selects the required helpers on demand.
+
+### Operand-aware inline assembly
+
+`__cpu6_asm16(text, value)` loads B with the 16-bit input and returns B
+after executing the instructions. `__cpu6_asm16_2(text, left, right)`
+loads A with `left` and B with `right` and also returns B.
+
+```c
+unsigned cpu6_subtract(unsigned left, unsigned right)
+{
+    return __cpu6_asm16_2("sab", left, right);
+}
+```
+
+Use a string literal with straight-line instructions. The compiler checks
+the register and addressing restrictions. For example, branches, calls and
+references to C symbols by assembly name are rejected in these expressions.
+[Inline assembly examples and diagnostics](../tests/sdcc-inline-asm.py)
 
 ### Bit operations
 
@@ -360,8 +475,8 @@ code calling C must preserve shared arithmetic scratch state. All native
 | `make tests` | Quick check plus 22 regression cases built at `-O0` and `-O1`. All 44 binaries run on the C instruction emulator and the JavaScript microcoded emulator. A compile-only case checks the removal of an unreachable indirect store |
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
 | `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
-| `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Run compiled programs on a new CENTOS disk copy and verify console input, calendar time, and JCL completion status |
-| `make tests-games` | Play Chomp, Connect Four, chess and Wumpus from the generated application image. Check VT100 moves and Wumpus input handling. Set `APP_IMAGE` to test a different image |
+| `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Run compiled programs on a new CENTOS disk copy and verify line and single-key console input, calendar time, and JCL completion status |
+| `make tests-games` | Play Chomp, Connect Four, chess and Wumpus from the generated application image. Check VT100 and ADDS display, terminal detection and Wumpus input. Set `APP_IMAGE` to test a different image |
 | `make tests-finch` | Format a scratch Finch track, read and replace a sector, and verify that adjacent data is preserved on the microcoded simulator |
 | `make bench-basic` | Run the Rugg/Feldman BM1 and BM2 BASIC benchmarks at the nominal 5 MHz CPU6 rate. Set `APP_IMAGE` to test a different image |
 
