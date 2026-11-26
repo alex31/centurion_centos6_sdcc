@@ -10,6 +10,7 @@ own license terms and copyright notices.
 | SDCC and its preprocessor | [SDCC COPYING](swext/sdcc/sdcc/COPYING), [SDCC documentation](swext/sdcc/sdcc/doc/README.txt), and file-specific notices |
 | Fuzix-Bintools | [LICENCE](swext/fuzix-bintools/LICENCE), [COPYRIGHT.MWC](swext/fuzix-bintools/COPYRIGHT.MWC), and file-specific notices |
 | C instruction emulator | [GPLv3 license](swext/centurion-c/LICENCE) and file-specific notices |
+| Native C++ emulator | [CenRE License](emulator/LICENSE.txt) and [port attribution](emulator/README.md) |
 | JavaScript emulator | [CenRE License](swext/centurion-js/LICENSE.txt) and [NOTICE](swext/centurion-js/NOTICE.md) |
 | Stefan BASIC | [Upstream LICENSE](swext/stefan-basic/LICENSE), source notices and the [GPLv3 text](swext/stefan-basic/COPYING.GPL-3) |
 | 101 BASIC Computer Games listings | [Upstream catalog and attribution](swext/101-basic-games/README.md) and listing-specific credits |
@@ -18,7 +19,7 @@ own license terms and copyright notices.
 | Hunt the Wumpus | [Caldera license](image/programs/wumpus/LICENSE) |
 | Historical EE200 assembly runtime (optional checkout) | [Upstream notice](https://github.com/EtchedPixels/Fuzix-Compiler-Kit#licence) and [source provenance](#source-provenance) |
 
-The build installs TypeScript and ws from npm, with their own notices.
+The JavaScript build installs TypeScript and ws from npm, with their own notices.
 Firmware packs and CENTOS disk images are local inputs supplied separately.
 See the [Centurion archive notice](https://github.com/Nakazoto/CenturionComputer/wiki/Software#operating-system)
 for access information.
@@ -42,6 +43,7 @@ revisions. The historical EE200 runtime is an optional checkout with
 | Fuzix-Bintools | [ca2ab54](https://codeberg.org/EtchedPixels/Fuzix-Bintools/commit/ca2ab54a4599f60dba7ca9882956178f070e7e13) | `main`, original Git history |
 | EE200 runtime | [7b2a72e](https://github.com/EtchedPixels/Fuzix-Compiler-Kit/tree/7b2a72edea6967e7df0b32e1e898fdea1754cc67/supportee200) | `upstream`, selected assembly source files |
 | C instruction emulator | [4e1a61c](https://github.com/EtchedPixels/Centurion/tree/4e1a61c56a48f36f231e93837f4896d621290685) | `upstream`, source tree |
+| Native C++ emulator | C++ port of the CenRE microcoded emulator | `emulator-cpp`, port introduced in `3cdde4f` |
 | JavaScript emulator | [2bf3550](https://github.com/billsargent/centurion/tree/2bf355026e3f5d4ebdf51138088b9499ccb31b09) | `upstream-software`, selected software files and notices with external firmware |
 | Stefan BASIC | [86ec458](https://github.com/slviajero/tinybasic/tree/86ec458ca3dac9d156ce23bfa28a99f1f39ca656/Basic2/Posix) | `upstream`, selected POSIX interpreter sources and license |
 | 101 BASIC Computer Games | [45f7505](https://github.com/maurymarkowitz/101-BASIC-Computer-Games/tree/45f75052be3f436f2e575f58d4aa611484268227) | `main`, original listings used by the image builder |

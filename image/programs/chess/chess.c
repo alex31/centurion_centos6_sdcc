@@ -125,7 +125,7 @@ int main(void)
 {
     unsigned human=0, two=0, restart=1, result;
     ChessMove move;
-    if (os6_curses_select() < 0)
+    if (os6_curses_init(OS6_CURSES_AUTO) < 0)
         return 1;
     chess_callback(cooperate,0);
     while(restart){

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check absolute EE200 output and the relocations used by CENTOS CBIN."""
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 
@@ -54,6 +55,19 @@ target:
     if linked[512:] != bytes.fromhex('14 08 14 04 12 34 56 78 ab cd'):
         raise AssertionError('relocation produced incorrect pointers')
 
+    # Relinking an intermediate object must preserve resolved and unresolved
+    # fixups, the code and data streams, and the order of the final image.
+    partial = work / 'partial.o'
+    final = work / 'final.bin'
+    for members, tail in (([code.with_suffix('.o')], [data.with_suffix('.o')]),
+                          ([code.with_suffix('.o'), data.with_suffix('.o')], [])):
+        run(linker, '-r', '-o', partial, *members)
+        run(linker, '-b', '-C', '512', '-R', work/'final.rel', '-o', final, partial, *tail)
+        assert final.read_bytes() == image.read_bytes()
+        assert (work/'final.rel').read_bytes() == relocs.read_bytes()
+    assert 'multiply defined' in run(linker, '-b', '-o', final,
+                                      data.with_suffix('.o'), data.with_suffix('.o'), success=False)
+
     byte_source = work / 'byte.s'
     byte_source.write_text('''\
 .setcpu 6
@@ -74,5 +88,28 @@ target:
     run(linker, '-b', '-C', '0', '-o', plain, byte_obj)
     if plain.read_bytes() != bytes.fromhex('01 00'):
         raise AssertionError('linking without relocation export changed')
+
+    # Input/output aliases and overlapping sidecar files must preserve every input.
+    original = data.with_suffix('.o')
+    contents = original.read_bytes()
+    alias = work / 'alias.o'
+    os.link(original, alias)
+    run(linker, '-b', '-o', alias, original, success=False)
+    run(linker, '-b', '-m', alias, '-o', image, original, success=False)
+    run(linker, '-b', '-R', alias, '-o', image, original, success=False)
+    assert original.read_bytes() == contents
+    alias.unlink()
+    alias.symlink_to(image)
+    before = image.read_bytes()
+    run(linker, '-b', '-R', alias, '-o', image, original, success=False)
+    assert image.read_bytes() == before
+    source_data = data.read_bytes()
+    run(assembler, '-o', data, data, success=False)
+    run(assembler, '-o', original, '-l', data, data, success=False)
+    assert data.read_bytes() == source_data and original.read_bytes() == contents
+    if Path('/dev/full').exists():
+        run(assembler, '-l', '/dev/full', '-o', work/'full.o', data, success=False)
+        run(linker, '-m', '/dev/full', '-b', '-o', image,
+            code.with_suffix('.o'), original, success=False)
 
 print('PASS: CBIN word fixups, invalid byte fixup and plain binary linking')

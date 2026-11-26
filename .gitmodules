@@ -1,7 +1,7 @@
 [submodule "swext/sdcc"]
 	path = swext/sdcc
 	url = ../centurion-sdcc-port-private.git
-	branch = neon_fixes
+	branch = centurion_cpu6
 	shallow = true
 [submodule "swext/fuzix-bintools"]
 	path = swext/fuzix-bintools
@@ -17,12 +17,12 @@
 [submodule "swext/centurion-js"]
 	path = swext/centurion-js
 	url = ../centurion-js-private.git
-	branch = neon_fixes
+	branch = docs/consolidation
 	shallow = true
 [submodule "swext/stefan-basic"]
 	path = swext/stefan-basic
 	url = ../centurion-stefan-basic-private.git
-	branch = neon_fixes
+	branch = centurion_cpu6
 	shallow = true
 [submodule "swext/centurion-c"]
 	path = swext/centurion-c
@@ -45,3 +45,4 @@
 [submodule "emulator"]
 	path = emulator
 	url = ./
+	branch = emulator-cpp

@@ -15,8 +15,9 @@ BASIC = ROOT / 'swext/stefan-basic/centos'
 
 
 def install(directory, seed, output, check_games):
-    if output.exists() or output == seed:
-        raise ValueError('BASIC installation requires a new output image')
+    report_path = output.with_suffix('.json')
+    if report_path == output or output.exists() or report_path.exists() or output == seed:
+        raise ValueError('BASIC installation requires separate new image and report files')
     output.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix='.basic-install-', dir=output.parent) as temporary:
         work = Path(temporary)
@@ -39,7 +40,11 @@ def install(directory, seed, output, check_games):
         pending = work / 'report.json'
         pending.write_text(json.dumps(report, indent=2) + '\n')
         os.link(base, output)
-        pending.replace(output.with_suffix('.json'))
+        try:
+            os.link(pending, report_path)
+        except OSError:
+            output.unlink()
+            raise
     print(f'Installed {len(playable)} tested ports in SBASIC')
 
 

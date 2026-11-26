@@ -41,6 +41,7 @@ async function main() {
         await session.waitFor('LIBC ADDS KEYS', start);
         await session.send('\x1a\x0a\x06\x15\b');
         await session.waitFor('PASS stdlib', start);
+        await session.waitFor('FLUSH AT RETURN', start);
         await session.waitFor('HELLO FROM C ON CENTURION CPU6', start);
         await session.waitFor('FOR SYSRDR', start);
         assert.doesNotMatch(session.output.slice(start), /FAIL|ABORT\s+\d|JX\s*\d/);

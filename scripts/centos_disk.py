@@ -72,6 +72,7 @@ def allocated_sectors(data, entry):
     index += 2
     seen = set()
     sectors = []
+    allocated = set()
     while True:
         if page >= len(entry.volume) or index * 3 + 3 > PAYLOAD:
             raise ValueError("invalid CENTOS allocation chain")
@@ -90,7 +91,11 @@ def allocated_sectors(data, entry):
         end = start + cluster_size
         if end > len(entry.volume):
             raise ValueError("CENTOS allocation extends beyond its volume")
-        sectors.extend(entry.volume[start:end])
+        cluster = entry.volume[start:end]
+        if not allocated.isdisjoint(cluster):
+            raise ValueError("duplicate sector in CENTOS allocation chain")
+        allocated.update(cluster)
+        sectors.extend(cluster)
         index += 1
 
 

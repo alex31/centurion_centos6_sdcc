@@ -14,7 +14,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from cpu6_object import symbols, unpack,attach
-from cpu6_provenance import compiler_info,input_hashes,write_manifest
+from cpu6_provenance import check_outputs, compiler_info, input_hashes, manifest_path, save_temps, write_manifest
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -43,8 +43,8 @@ def main():
     output = args.o.resolve()
     if output.suffix != '.exf':
         parser.error('-o must name an .exf file (the .h/.json/.map siblings are generated)')
-    if output in sources or any(output.with_suffix(s) in sources for s in ['.h', '.json', '.map']):
-        parser.error('outputs must not overwrite an input')
+    outputs = [output, manifest_path(output), *(output.with_suffix(s) for s in ['.h', '.json', '.map'])]
+    check_outputs(outputs, sources)
     flags = ['-O'+args.O]
     if args.float32: flags += ['--float32']
     if args.native_int48: flags += ['--native-int48']
@@ -120,10 +120,8 @@ def main():
             shutil.copyfile(mapping, output.with_suffix('.map'))
             print('%s: %d bytes resident slot, %d bytes CBIN, ABI 1' % (args.name, size, len(cbin)))
         finally:
-            if args.save_temps:
-                args.save_temps.mkdir(parents=True, exist_ok=True)
-                for p in work.iterdir():
-                    if p.is_file(): shutil.copyfile(p, args.save_temps / p.name)
+            save_temps(work, args.save_temps, [*sources, *outputs])
+
 
 if __name__ == '__main__':
     try: main()

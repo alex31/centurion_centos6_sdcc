@@ -226,10 +226,11 @@ with `putchar()` or `puts()`, or before reading from the console.
 
 Include `<os6_curses.h>` and call `os6_curses_init()` with
 `OS6_CURSES_VT100`, `OS6_CURSES_ADDS_REGENT_100`, or `OS6_CURSES_AUTO`.
-In auto mode the library sends the VT100 Device Attributes and ADDS Read
-Status requests. If neither returns a recognized response, press `V` for
-VT100, `A` for ADDS, or Enter for VT100. The CENTOS console read waits for
-input. `os6_curses_select()` presents all three choices interactively.
+Auto mode sends the VT100 Device Attributes and ADDS Read Status requests
+silently. XCONNECT4 and XCHESS use this mode at startup. If the terminal
+does not reply, press `V` or Enter for VT100, or `A` for ADDS. The CENTOS
+console waits for a terminal response or one of these keys.
+`os6_curses_select()` presents all three choices interactively.
 
 Use `os6_curses_move(row, column)` for one-based positioning on the 24×80
 screen and `os6_curses_clear()`, `os6_curses_eol()`, and
@@ -375,7 +376,6 @@ Arithmetic rounds to nearest, ties to even. Float/integer conversion truncates
 toward zero in the C-defined range; out-of-range integer conversion is not a
 portable API. Conversion to/from native 48-bit scalars is diagnosed; explicit
 intermediate 32-bit conversions are possible where the application accepts them.
-There are no 64-bit target integer operations in this implementation.
 
 The math API supplies `sinf`, `cosf`, `tanf`, `atanf`, `expf`, `logf`, `sqrtf`,
 `fabsf`, `copysignf`, `truncf`, `floorf`, `ceilf`, and classification macros.
@@ -449,9 +449,8 @@ uint48_t calculate(uint48_t a, uint48_t b)
 ```
 
 The option passes `--cpu6-bitint48` and defines `CPU6_NATIVE_INT48` for the
-header. It is specific to the SDCC wrapper. Normal builds and FCC keep the
-structure API. This is support for the selected scalar widths, not arbitrary
-`_BitInt(N)` widths or full C23 conformance. Unsupported widths are rejected.
+header. The default SDCC build uses the structure API. The compiler checks
+the supported scalar widths and rejects unsupported `_BitInt(N)` widths.
 Generalized constant propagation remains enabled, but its automatic
 bit-width narrowing remains disabled for CPU6 to avoid inventing unsupported
 24- or 40-bit temporaries.
@@ -476,7 +475,7 @@ code calling C must preserve shared arithmetic scratch state. All native
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
 | `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
 | `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Run compiled programs on a new CENTOS disk copy and verify line and single-key console input, calendar time, and JCL completion status |
-| `make tests-games` | Play Chomp, Connect Four, chess and Wumpus from the generated application image. Check VT100 and ADDS display, terminal detection and Wumpus input. Set `APP_IMAGE` to test a different image |
+| `make tests-games` | Play Chomp, Connect Four, chess and Wumpus from the generated application image. Check VT100 detection and display on the JavaScript backend. With the native headless binding built, run `CENTURION_OS6_BACKEND=cpp make tests-games` to check ADDS. Set `APP_IMAGE` to test a different image |
 | `make tests-finch` | Format a scratch Finch track, read and replace a sector, and verify that adjacent data is preserved on the microcoded simulator |
 | `make bench-basic` | Run the Rugg/Feldman BM1 and BM2 BASIC benchmarks at the nominal 5 MHz CPU6 rate. Set `APP_IMAGE` to test a different image |
 

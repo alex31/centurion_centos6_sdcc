@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / 'os6/mmu'
 sys.path.insert(0,str(ROOT/'scripts'))
 from cpu6_object import unpack,attach
-from cpu6_provenance import compiler_info,input_hashes,write_manifest
+from cpu6_provenance import check_outputs, compiler_info, input_hashes, manifest_path, save_temps, write_manifest
 
 
 def main():
@@ -45,8 +45,8 @@ def main():
     if output.suffix != '.exf':
         parser.error('-o must name an .exf file; .json/.h/.map siblings are generated')
     outputs = [output.with_suffix(s) for s in ['.exf', '.json', '.h', '.map']]
-    if any(p in sources for p in outputs):
-        parser.error('outputs must not overwrite an input')
+    outputs.append(manifest_path(output))
+    check_outputs(outputs, sources)
     flags = ['-O'+args.O, '-I' + str(HERE),
              '-DOS6_MMU_MODULE_ID=' + str(args.module_id)]
     if args.float32:
@@ -124,11 +124,7 @@ def main():
             shutil.copyfile(mapping, output.with_suffix('.map'))
             print('%s: %d bytes, %d MMU pages, ABI 1' % (args.name, size, descriptor['pages']))
         finally:
-            if args.save_temps:
-                args.save_temps.mkdir(parents=True, exist_ok=True)
-                for p in work.iterdir():
-                    if p.is_file():
-                        shutil.copyfile(p, args.save_temps / p.name)
+            save_temps(work, args.save_temps, [*sources, *outputs])
 
 
 if __name__ == '__main__':

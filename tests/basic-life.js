@@ -4,8 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {OS6Session} = require('../scripts/os6-session.js');
 
-function expectedBoards() {
-    let seed = 1;
+function expectedBoards(seed = 1) {
     let board = Array(69).fill(false);
     for (let cell = 2; cell < board.length - 2; cell++) {
         seed = (17 * seed + 43) % 256;
@@ -78,7 +77,9 @@ async function main() {
     }
 }
 
-main().then(() => process.exit(0), error => {
+module.exports = {expectedBoards};
+
+if (require.main === module) main().then(() => process.exit(0), error => {
     console.error(error);
     process.exit(1);
 });

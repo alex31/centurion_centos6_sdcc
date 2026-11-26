@@ -37,4 +37,19 @@ start:
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if result.returncode == 0 or 'must be absolute' not in result.stdout:
         raise SystemExit('assembler accepted a non-absolute bitwise expression')
+
+    # A long comment on one physical line must never assemble as a second line.
+    source.write_text('.code\n.byte ' + '1,' * 100 + '1 ;' + ' ' * 126 + '.byte 7\n' +
+                      '.byte 0X' + '0' * 80 + 'CC\n')
+    subprocess.run([assembler, '-o', obj, source], check=True)
+    subprocess.run([linker, '-b', '-C', '0', '-o', image, obj], check=True)
+    assert image.read_bytes() == bytes([1]) * 101 + bytes([0xcc])
+
+    # Over 8192 relaxed branches fit comfortably in one 16-bit segment.
+    source.write_text('.code\n' + ''.join(f'l{i}: jz l{i}\n' for i in range(8200)))
+    subprocess.run([assembler, '-o', obj, source], check=True)
+    subprocess.run([linker, '-b', '-C', '0', '-o', image, obj], check=True)
+    assert image.read_bytes() == bytes([0x14, 0xfe]) * 8200
+    assert subprocess.run([assembler, '-r', '-1', '-o', obj, source],
+                          capture_output=True, timeout=5).returncode != 0
 print('PASS: EE200 bitwise expression operators and precedence')

@@ -50,7 +50,11 @@ for family in (['fcc','sdcc'] if a.compiler=='both' else [a.compiler]):
    if stem in ('printf','console-write'):formatter+=objects
   def archive(filename,objects):
    archive=work/filename;subprocess.run(['ar','qc',archive,*objects],check=True)
-   target=destination/filename;staged=destination/(filename+'.new');shutil.copy2(archive,staged);os.replace(staged,target)
+   target=destination/filename
+   with tempfile.TemporaryDirectory(prefix='.stage-',dir=destination) as stage:
+    staged=Path(stage)/filename
+    shutil.copy2(archive,staged)
+    os.replace(staged,target)
    write_manifest(target,info,flags,input_hashes([root/'os6'/s for s,_ in sources]+headers),profile=a.profile,commands=commands)
    print('Built',target,flush=True)
   if not a.printf_sdcc_only:archive('libos6-fcc.a' if family=='fcc' else 'libos6.a',members)

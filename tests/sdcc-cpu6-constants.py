@@ -13,6 +13,11 @@ rng = random.Random(0xc00647)
 divisors = [1, 2, 3, 5, 7, 10, 31, 47, 127, 128, 129, 255, 256, 257,
             32767, 32768, 32769, 65534, 65535]
 manifest = []
+# Narrow result types do not change the promoted left operand's shift width.
+shift_source = work / 'narrow-result.c'
+shift_source.write_text('unsigned char f(void) { return (unsigned char)(65535UL << 21); }\n'
+                        'unsigned char g(unsigned long x) { return (unsigned char)(x << 21); }\n')
+subprocess.run([root/'run/sdcc', '--Werror', '-S', shift_source, '-o', work/'narrow-result.s'], check=True)
 for group in range(4):
     source = '#include <stdio.h>\n'
     names = []

@@ -5,7 +5,7 @@
    Default printf returns flush output; listings may opt into batch mode. */
 static char output_buffer[64];
 static unsigned int output_length;
-static int buffer_across_calls;
+extern void (*os6_exit_flush)(void);
 typedef const char *string_arg;
 void os6_write_encoded(const char *data, unsigned int length);
 
@@ -33,7 +33,7 @@ void os6_printf_flush(void)
 void os6_printf_buffered(int enabled)
 {
     if (!enabled) flush_output();
-    buffer_across_calls = enabled != 0;
+    os6_exit_flush = enabled ? os6_printf_flush : (void (*)(void))0;
 }
 
 static void emit_character(int value)
@@ -159,6 +159,6 @@ int printf(const char *format, ...)
         }
     }
     va_end(arguments);
-    if (!buffer_across_calls) flush_output();
+    if (!os6_exit_flush) flush_output();
     return count;
 }

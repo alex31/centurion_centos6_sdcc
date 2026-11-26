@@ -17,5 +17,14 @@ def encode(source):
     return bytes(output)
 
 def decode(raw):
-    text=bytes(c&127 for c in raw).split(b'\x04',1)[0]
-    return text.replace(b'\0',b'').replace(b'\r',b'\n').decode('ascii')
+    lines = []
+    for start in range(0, len(raw), 400):
+        sector = bytes(c & 127 for c in raw[start:start + 400])
+        data, eof, _ = sector.partition(b'\x04')
+        for record in data.split(b'\r'):
+            if not record or record[0] == 0:
+                break  # Empty record marks unused space at the end of a sector.
+            lines.append(record.decode('ascii') + '\n')
+        if eof:
+            break
+    return ''.join(lines)

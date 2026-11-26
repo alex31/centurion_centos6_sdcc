@@ -197,4 +197,4 @@ const backend = process.env.CENTURION_OS6_BACKEND || 'javascript';
 if (backend !== 'cpp' && backend !== 'javascript')
     throw new Error('CENTURION_OS6_BACKEND must be cpp or javascript');
 const OS6Session = backend === 'cpp' ? NativeSession : JavaScriptSession;
-module.exports = {OS6Session};
+module.exports = {OS6Session, JavaScriptSession};

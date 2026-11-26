@@ -38,6 +38,9 @@ __osctxp:
 	.word __osctx
 
 	.bss
+	.export _os6_exit_flush
+_os6_exit_flush:
+	.ds 2
 ; Keep the C stack out of the inherited low-memory OS/CPU context. Calls in
 ; nontrivial programs can otherwise overwrite those reserved locations.
 __osstack:
@@ -71,6 +74,11 @@ ready:
 	jsr _main
 __os6_finish:
 	stbb (__exit_code)
+	; Buffered printf installs a callback only when batching is enabled.
+	ldb (_os6_exit_flush)
+	bz close_crt
+	jsr (b)
+close_crt:
 	; CLOSE CRT and STOP using the low byte returned by main.
 	.byte 0x66,0x3a,0x0a
 	.word __oscrt

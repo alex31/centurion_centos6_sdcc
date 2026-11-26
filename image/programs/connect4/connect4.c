@@ -45,7 +45,7 @@ static int ask(const char *question)
 int main(void)
 {
     int row, column, finished, playing = 1;
-    if (os6_curses_select() < 0)
+    if (os6_curses_init(OS6_CURSES_AUTO) < 0)
         return 1;
     while (playing) {
         c4_init(&board);

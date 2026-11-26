@@ -9,7 +9,6 @@ static int detect_terminal(void)
 {
     int key;
 
-    puts("Detecting terminal. If this waits, press V for VT100 or A for ADDS.");
     printf("\033[c\033\005");
     os6_printf_flush();
     for (;;) {

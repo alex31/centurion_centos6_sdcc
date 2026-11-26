@@ -23,6 +23,7 @@ uint16_t local_work(uint16_t v);
 int16_t char_mix(int8_t a,uint8_t b);
 uint16_t saved_word(void);
 uint16_t constant_one(void);
+uint16_t read_shared(void);
 ''')
 # The word at 4(S) belongs to the register range while the push is active.
 (work/'registers.s').write_text('''    .setcpu 6
@@ -43,6 +44,8 @@ _saved_word:
 ''')
 (work/'callee.c').write_text('''#include "api.h"
 static uint16_t state=100;
+volatile uint16_t shared=42;
+uint16_t read_shared(void){return shared;}
 uint16_t constant_one(void){return 1U;}
 uint16_t mix(uint16_t a,uint16_t b){return ((a<<3)^b)+37U;}
 uint16_t twice(uint16_t a){uint16_t t=a*3U;return t^(t<<4);}
@@ -70,6 +73,8 @@ for a in [0,1,2,127,255,32767,32768,65535]:
 caller='''#include <stdio.h>
 #include "api.h"
 static uint16_t state=900;
+static volatile uint16_t shared=17;
+uint16_t check_scope(void){return shared+read_shared();}
 static uint16_t (*volatile indirect)(uint16_t,uint16_t)=mix;
 uint16_t check_reg(uint16_t a,uint16_t b){return regcall(a,b)+1U;}
 uint32_t check_wide(uint32_t a){return wide_xor(a)+1UL;}
@@ -101,7 +106,7 @@ for a in [0,1,32767,65535]:
         for b in range(1,6):value=(((value<<3)^b)+37)&65535
     checks.append((f'branch_block({a}U)',value))
 checks.extend([('check_char(-128,255)',126), ('check_saved()',0x1235)])
-checks.append(('constant_one()',1))
+checks.extend([('constant_one()',1), ('check_scope()',59)])
 for index,(expression,expected) in enumerate(checks):
     caller+=f'if({expression}!={expected}U){{puts("FAIL LTO {index}");return 1;}}\n'
 caller+='''if(wide_xor(0xabcdef19UL)!=0xb9f9b961UL){puts("FAIL LTO wide");return 1;}

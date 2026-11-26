@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'build/out/toolchain'
 sys.path.insert(0, str(ROOT / 'scripts'))
 from cpu6_object import attach
-from cpu6_provenance import compiler_info,input_hashes,write_manifest
+from cpu6_provenance import check_outputs, compiler_info, input_hashes, manifest_path, save_temps, write_manifest
 
 
 def main():
@@ -61,12 +61,12 @@ def main():
     if args.c and (args.lto or args.gc_keep):
         parser.error('--lto and --gc-keep are link options; -c already retains the object IR')
     output = args.o.resolve()
-    if output in sources:
-        parser.error('output must not overwrite an input')
+    outputs = [output, manifest_path(output)]
+    if args.map:
+        outputs.append(args.map)
+    check_outputs(outputs, sources)
     if not os6 and not 0x200 <= args.origin < 0x8000:
         parser.error('bare-metal origin must be between 0200 and 7fff')
-    if args.map and args.map.resolve() == output:
-        parser.error('map and output must be different files')
     compiler = TOOLS / 'sdcc-cpu6/bin/sdcc'
     includes = ([ROOT / 'os6/include'] if os6 else []) + [ROOT / 'baremetal/include']
     includes += [Path(p).resolve() for p in args.I]
@@ -203,11 +203,7 @@ def main():
                            codeBytes=symbols.get('__code_size'),dataBytes=symbols.get('__data_size'),
                            bssBytes=symbols.get('__bss_size'),residentEnd=symbols.get('__end'))
         finally:
-            if args.save_temps:
-                args.save_temps.mkdir(parents=True, exist_ok=True)
-                for file in work.iterdir():
-                    if file.is_file():
-                        shutil.copyfile(file, args.save_temps / file.name)
+            save_temps(work, args.save_temps, [*sources, *outputs])
 
 
 if __name__ == '__main__':

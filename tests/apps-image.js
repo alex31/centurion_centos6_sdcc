@@ -53,8 +53,8 @@ function parseJobs(output) {
 }
 
 async function referenceJobs(image) {
-    const {OS6Session} = require('../scripts/os6-session.js');
-    const session = new OS6Session(image);
+    const {JavaScriptSession} = require('../scripts/os6-session.js');
+    const session = new JavaScriptSession(image);
     const {cpu, io_mux, io_ffc, __runHW} = global.window;
     const batch = 100, slice = 100000;
     async function advance() {
@@ -144,6 +144,20 @@ async function checkImage() {
         await session.send('RUNTESTS\r');
         await session.waitFor('FOR SYSRDR', from, 120000);
         checkRegressions(session.output.slice(from), expected);
+        const {expectedBoards} = require('./basic-life.js');
+        let previous;
+        for (let run = 0; run < 2; run++) {
+            const reply = await session.command('.RUN SDCC.XLIFE1D', 'DONE');
+            assert.doesNotMatch(reply, /LIFESEED NOT UPDATED/);
+            const seed = /1D LIFE - B23\/S24  SEED (\d+)/.exec(reply);
+            assert.ok(seed, reply);
+            const value = Number(seed[1]);
+            if (previous !== undefined) assert.equal(value, (previous + 1) % 256);
+            previous = value;
+            const boards = [...reply.matchAll(/^(\|[ *]{69}\|)/gm)].map(match => match[1]);
+            assert.deepEqual(boards, expectedBoards(value));
+        }
+        console.log('PASS: XLIFE1D saves the next seed and matches all 27 rows on both runs.');
     } finally {
         session.stop();
     }

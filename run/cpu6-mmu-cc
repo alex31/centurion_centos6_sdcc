@@ -18,7 +18,7 @@ HERE = ROOT / 'os6/mmu/automatic'
 sys.path.insert(0, str(ROOT / 'scripts'))
 import cpu6_gc as gc
 from cpu6_object import attach, symbols,unpack
-from cpu6_provenance import compiler_info,input_hashes,write_manifest
+from cpu6_provenance import check_outputs, compiler_info, input_hashes, manifest_path, save_temps, write_manifest
 
 DECL = re.compile(r'^; CPU6 MMU D (\S+) (-?\d+) (\w+) (\d+) (.*)$', re.M)
 ESCAPE = re.compile(r'^; CPU6 MMU E (\S+) (.*)$', re.M)
@@ -100,9 +100,12 @@ def main():
     if not args.c and not re.fullmatch('[A-Z][A-Z0-9]{0,9}', name):
         parser.error('the output stem must be a CENTOS name of 1-10 letters/digits')
     if not 256 <= args.stack_size <= 8192: parser.error('stack size must be in 256..8192')
-    destinations = [output, output.with_suffix('.mmu.exf'), output.with_suffix('.json'),
+    outputs = [output, manifest_path(output)]
+    if not args.c:
+        companion = output.with_suffix('.mmu.exf')
+        outputs += [companion, manifest_path(companion), output.with_suffix('.json'),
                     output.with_suffix('.map'), output.with_suffix('.job')]
-    if any(p in sources for p in destinations): parser.error('outputs cannot overwrite inputs')
+    check_outputs(outputs, sources)
     compiler = ROOT / 'build/out/toolchain/sdcc-cpu6/bin/sdcc'
     if not compiler.exists(): parser.error('build the compiler first with make toolchain')
     env = dict(os.environ)
@@ -155,7 +158,8 @@ def main():
             for p in [compiler, Path(__file__).resolve(), HERE/'runtime.c', HERE/'gate.s', HERE/'module-start.s', ROOT/'os6/crt0.s',
                       ROOT/'scripts/cpu6_gc.py', ROOT/'scripts/cpu6_lto.py', ROOT/'scripts/cpu6_object.py', ROOT/'run/mkos6bin.py',
                       ROOT/'build/out/toolchain/bin/asee200', ROOT/'build/out/toolchain/bin/ldee200',
-                      *sorted((ROOT/'build/out/toolchain/lib/os6').glob('*')),
+                      *sorted((ROOT/'build/out/toolchain/lib/os6').glob('*.o')),
+                      *sorted((ROOT/'build/out/toolchain/lib/os6').glob('*.a')),
                       *sorted((ROOT/'build/out/toolchain/lib/cpu6').glob('*.a'))]:
                 if p.is_file(): digest.update(p.read_bytes())
             digest.update(str((args.stack_size,args.O,args.no_lto)).encode())
@@ -231,6 +235,18 @@ def main():
                 output.with_suffix('.job').write_text('.RUN '+name+'\n')
                 write_manifest(output,compiler_info(compiler),flags,input_hashes([*sources,*libraries]),
                                profile='O'+args.O,lto=not args.no_lto,ltoSourceUnits=len(source_units),gc=True,mode='resident')
+                # A rebuild of a mapped program can become entirely resident.
+                # Retire only files verified against the previous companion manifest.
+                companion_manifest = manifest_path(companion)
+                if companion.is_file() and companion_manifest.is_file():
+                    try:
+                        previous = json.loads(companion_manifest.read_bytes())
+                    except (UnicodeDecodeError, ValueError):
+                        previous = None
+                    if (isinstance(previous, dict) and previous.get('kind') == 'MMU companion'
+                            and previous.get('sha256') == hashlib.sha256(companion.read_bytes()).hexdigest()):
+                        companion.unlink()
+                        companion_manifest.unlink()
                 print('%s: %d resident bytes; no live MMU objects' % (name,normal['__end']))
                 return
             for unit in units:
@@ -354,10 +370,7 @@ def main():
                   (name, descriptor['residentEnd'], bank_size, descriptor['modulePages']))
         finally:
             (work/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
-            if args.save_temps:
-                args.save_temps.mkdir(parents=True, exist_ok=True)
-                for p in work.iterdir():
-                    if p.is_file(): shutil.copyfile(p, args.save_temps/p.name)
+            save_temps(work, args.save_temps, [*sources, *outputs])
 
 
 if __name__ == '__main__':

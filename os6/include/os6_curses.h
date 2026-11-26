@@ -17,7 +17,7 @@ enum os6_curses_key {
     OS6_KEY_UNKNOWN
 };
 
-/* AUTO queries the terminal and offers a manual choice if it stays silent. */
+/* AUTO queries the terminal silently. V or Enter selects VT100, A selects ADDS. */
 int os6_curses_init(enum os6_terminal terminal);
 int os6_curses_select(void);
 

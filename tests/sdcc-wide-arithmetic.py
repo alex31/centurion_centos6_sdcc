@@ -26,6 +26,10 @@ def literal(n):
 source = '''#include <stdint.h>
 #include <stdio.h>
 static volatile uint32_t observed;
+static volatile unsigned numerator = 60000U, denominator = 301U;
+static uint32_t widened_division(void) {
+    return (uint32_t)numerator / ((uint32_t)denominator | 1UL);
+}
 static uint32_t divide_u(uint32_t a, uint32_t b) { return a / b; }
 static uint32_t remainder_u(uint32_t a, uint32_t b) { return a % b; }
 static int32_t divide_s(int32_t a, int32_t b) { return a / b; }
@@ -88,6 +92,7 @@ for ua,ub in pairs:
 source += '''};
 int main(void) {
     unsigned i;
+    if (widened_division() != 199UL) { puts("FAIL narrowed division"); return 4; }
     for (i=0; i<sizeof(unsigned_cases)/sizeof(unsigned_cases[0]); i++) {
         const struct unsigned_case *p = &unsigned_cases[i];
         uint32_t a = p->a, b = p->b;

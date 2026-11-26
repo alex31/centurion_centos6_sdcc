@@ -17,6 +17,7 @@ DEFAULT_OUTPUT = OUT / 'centos-apps.img'
 sys.path[:0] = [str(ROOT / 'tests'), str(ROOT / 'scripts'), str(ROOT / 'build')]
 from regression_cases import regression_cases
 from centos_text import encode
+from centos_disk import root_entry
 from dobuild import announce
 SEED_BYTES = 6651904
 
@@ -122,8 +123,12 @@ def main():
         '-o', basic_artifacts / 'BASIC.exf')
     announce(3)
     programs_image = work / 'programs.img'
+    life_seed = root_entry(seed.read_bytes(), 'LIFESEED')
+    if life_seed is not None and life_seed.kind != 1:
+        raise ValueError('LIFESEED must be a CENTOS binary data file')
+    allocations = [] if life_seed else ['--data-file', 'LIFESEED:1:B']
     run(sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed, *programs, *tests,
-        '--library', 'SDCC', '--job', f'RUNTESTS={job}', '-o', programs_image)
+        '--library', 'SDCC', '--job', f'RUNTESTS={job}', *allocations, '-o', programs_image)
     announce(4)
     final_image = work / 'centos-apps.img'
     run(sys.executable, ROOT / 'image/install-basic.py', basic_artifacts,

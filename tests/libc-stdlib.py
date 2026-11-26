@@ -17,15 +17,22 @@ def check_centos(work, seed):
     driver = ROOT / 'run/cpu6-os6-sdcc'
     libc = work / 'libc.exf'
     hello = work / 'hello.exf'
+    buffered = work / 'buffered.exf'
+    source_buffered = work / 'buffered.c'
+    source_buffered.write_text('#include <stdio.h>\n'
+                               'int main(void) { os6_printf_buffered(1); '
+                               'printf("FLUSH AT RETURN"); return 23; }\n')
     for source, output in ((ROOT / 'tests/libc-stdlib.c', libc),
-                           (ROOT / 'examples/hello_os6.c', hello)):
+                           (ROOT / 'examples/hello_os6.c', hello),
+                           (source_buffered, buffered)):
         subprocess.run([driver, '-Os', '--gc-sections', source, '-o', output], check=True)
     job = work / 'libctest.txt'
     job.write_bytes(encode('.JOB LIBCTEST ABORT=CANCEL\n.RUN XLIBC\n'
+                           '.SKIP 1 IF #C NE 23\n.RUN XBUFFER\n'
                            '.SKIP 1 IF #C NE 23\n.RUN XHELLO6\n.END\nS.CON\n'))
     image = work / 'libc.img'
     subprocess.run([sys.executable, ROOT / 'scripts/install-os6-bundle.py', seed,
-                    f'XLIBC={libc}', f'XHELLO6={hello}', '--job', f'LIBCTEST={job}',
+                    f'XLIBC={libc}', f'XHELLO6={hello}', f'XBUFFER={buffered}', '--job', f'LIBCTEST={job}',
                     '-o', image], check=True)
     subprocess.run(['node', ROOT / 'tests/libc-centos.js', image], check=True)
 

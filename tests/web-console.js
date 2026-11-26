@@ -149,13 +149,46 @@ async function checkTerminalStatusBeforeConnect() {
         let output = '';
         client.on('data', bytes => { output += bytes.toString(); });
         await waitFor(() => output.includes(banner), 'the replayed CRT output on Telnet', 2);
-        client.write('K');
+        // Window-size and terminal-type negotiation may arrive one byte per TCP read.
+        for (const byte of [255,250,31,0,80,0,24,255,240,255,250,24,0,88,255,240,13,10,75])
+            client.write(Buffer.from([byte]));
         await waitFor(() => received.includes(75), 'Telnet input after replay', 2);
-        assert.deepEqual(received, [...status, 75], 'Telnet replay sent another status reply');
+        assert.deepEqual(received, [...status, 13, 75], 'Telnet negotiation or CRLF produced extra keystrokes');
     } finally {
         client?.peer.destroy();
         client?.destroy();
         crt1.receive = receive;
+    }
+}
+
+function checkDiskManager() {
+    const {DiskManagerSession} = require(path.join(built, 'server/src/ports/disk-manager.js'));
+    const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'centurion-disks-'));
+    try {
+        fs.writeFileSync(path.join(directory, 'data.img'), '');
+        fs.truncateSync(path.join(directory, 'data.img'), 5196800);
+        fs.writeFileSync(path.join(directory, 'short.img'), '');
+        const drives = [0, 1].map(unitIndex => ({
+            label: 'DSK2 Unit ' + unitIndex, unitIndex, type: 'dsk2',
+            container: {image: null, set_disk(image) { this.image = image; }},
+        }));
+        let output = '';
+        const session = {write(text) { output += text; }, writeln(text) { output += text; }};
+        new DiskManagerSession(drives, session, directory);
+        const mounted = {filename: 'system.img', type: 'hawk', backing_data: new ArrayBuffer(0)};
+        drives[1].container.set_disk(mounted); // Mounted from another console.
+        session.onKey('1');
+        assert.match(output, /Unsupported disk image size/);
+        assert.equal(drives[0].container.image, null);
+        session.onKey('0');
+        assert.equal(drives[0].container.image.stride, 400);
+        session.onKey('u');
+        assert.equal(drives[1].container.image, mounted);
+        session.onKey('0');
+        assert.equal(drives[0].container.image, null);
+        assert.equal(drives[1].container.image, mounted);
+    } finally {
+        fs.rmSync(directory, {recursive: true, force: true});
     }
 }
 
@@ -272,8 +305,10 @@ async function checkConsolePage(html, script, image) {
 async function main() {
     if (native)
         await launchNative();
-    else
+    else {
+        checkDiskManager();
         await checkTerminalStatusBeforeConnect();
+    }
     const page = await request('/');
     assert.equal(page.status, 200);
     assert.match(page.body.toString(), /CRT0[\s\S]*CRT1[\s\S]*Stop server/);

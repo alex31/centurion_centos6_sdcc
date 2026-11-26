@@ -2,10 +2,10 @@
 
 ## Application and libc update
 
-The image with the memory and string library uses SDCC `58c95ff51` and
-Stefan BASIC `e89e179`. Relative to distribution `9caf89a`, the eleven
-BASIC benchmarks used **2.07% fewer microcycles** on average, weighting
-each program equally. Both images ran the same workloads three times.
+Distribution revision `2d995a3`, which introduced the memory and string
+library, used SDCC `58c95ff51` and Stefan BASIC `e89e179`. Relative to
+distribution `9caf89a`, the eleven BASIC benchmarks used **2.07% fewer
+microcycles** on average, weighting each program equally. Both images ran the same workloads three times.
 
 | Workload | Previous microcycles | Updated microcycles | Reduction |
 | --- | ---: | ---: | ---: |
@@ -24,8 +24,9 @@ BASIC's decimal formatter cancels powers of two with CTZ before expanding
 a fraction. The `.LIST` timings cover the echoed command through the last
 displayed line, with identical output in all three runs.
 
-Connect Four packs column pairs and uses `bswap16` to check both diagonals.
-Its code shrank from 5,113 to 5,105 bytes, with the same moves and boards.
+In that revision, Connect Four packed column pairs and used `bswap16` to
+check both diagonals. Its code shrank from 5,113 to 5,105 bytes, with the
+same moves and boards.
 Across all 64 CENTOS files, load-record bytes fell from 147,339 to 147,262.
 Each file kept its previous on-disk size, totaling 181,200 bytes. The
 [string functions](sdcc.md#memory-and-strings) are linked individually.
@@ -145,7 +146,9 @@ following the prime output. [Distributed C source](../image/programs/sieve/sieve
 | Original CPL `USAGI.XSIEVE` | 353,559,966 | 70.71 s | 97.09 s |
 | Optimized C `SDCC.XSIEVE` | 535,308 | 0.107 s | 8.81 s |
 
-The optimized C run took 44,054,442 microcycles through the report.
+Three runs of the distributed C executable on the JavaScript microcoded
+emulator reproduced both the 535,308-microcycle kernel and the
+44,054,442 microcycles through the report.
 
 ## One-dimensional Life
 
@@ -169,12 +172,12 @@ update, at the CPU6's nominal 5 MHz rate.
 | Program | CPU6 microsteps | Time at 5 MHz |
 | --- | ---: | ---: |
 | `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
-| Distributed integer bytecode BASIC | 33,816,108 | 6.76 s |
-| Distributed C compiled by SDCC | 9,893,380 | 1.98 s |
+| Distributed integer bytecode BASIC | 33,811,416 | 6.76 s |
+| Distributed C compiled by SDCC | 9,893,554 | 1.98 s |
 
-The historical row reports one full emulator run, with generation times
-between 28.79 and 29.45 s. The distributed C and BASIC programs use the
-same initial state and render identical rows. Their timings are medians
+The CENTOS BASIC 6.03 row reports one full emulator run, with generation times
+between 28.79 and 29.45 s. The C and BASIC benchmark builds used the
+same initial state and rendered identical rows. Their timings are medians
 of three runs with seed 1, with all 27 rows verified against an independent
 model. CENTOS scheduling can vary between bytecode BASIC runs even with the
 same seed. The original source uses its own random initial state and cursor
@@ -199,9 +202,10 @@ image used about 0.11% fewer microcycles. [Life regression](../tests/basic-life.
 
 The Rugg/Feldman suite covers loops, arithmetic, subroutines, arrays and
 transcendental functions. The Ahl benchmark exercises square root, square
-and random-number generation. The CPU6 timings use the default real
-variables and count microsteps between two markers, after bytecode
-compilation. The benchmark validates the final values after the end marker.
+and random-number generation. The CPU6 timings below were verified in three fresh sessions on the native
+microcoded emulator with the image's Stefan BASIC module `MA485BBBC`.
+They use the default real variables and count microsteps between two markers
+after bytecode compilation. The benchmark validates the final values after the end marker.
 The C64 column gives published timings from *Practical Computing* and
 *Creative Computing*. [Practical Computing, January 1984](https://www.worldradiohistory.com/UK/Practical-Computing/80s/Practical-Computing-1984-01-S-OCR.pdf) · [Creative Computing, November 1983](https://archive.org/stream/creativecomputing-1983-11/Creative_Computing_v09_n11_1983_November_djvu.txt)
 

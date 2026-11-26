@@ -12,6 +12,7 @@ TESTS = ROOT / "tests"
 OUTPUT = ROOT / "build/out/tests"
 
 SUITES = (
+    "emulator-cli.py",
     "compiler-audit.py",
     "sdcc-cpu6-language.py",
     "sdcc-cpu6-codegen.py",
@@ -43,6 +44,7 @@ SUITES = (
     "sdcc-rhs-forwarding.py",
     "cpu6-gc.py",
     "cpu6-archive.py",
+    "sdk-files.py",
     "archive-rescan.py",
     "run-cpu6-peep.sh",
     "cpu6-autoindex-rules.py",

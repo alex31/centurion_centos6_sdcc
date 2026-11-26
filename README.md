@@ -1,6 +1,6 @@
 # Centurion CPU6 SDCC
 
-A source distribution of the SDCC cross-compiler for the Centurion CPU6, the EE200 assembler and linker, and a microcoded JavaScript emulator. The project supports Ubuntu 24.04 LTS and 26.04 LTS on native Linux and under WSL2.
+A source distribution of the SDCC cross-compiler for the Centurion CPU6, the EE200 assembler and linker, and microcoded CPU6 emulators in C++ and JavaScript. The project supports Ubuntu 24.04 LTS and 26.04 LTS on native Linux and under WSL2.
 
 I discovered the Centurion through Usagi Electric's videos. I was fascinated by his restoration series, and it made me want to port a C compiler to the machine. [Usagi Electric's Centurion series overview](https://www.youtube.com/watch?v=KVQ_oGQ6OFI)
 
@@ -47,7 +47,7 @@ sudo apt install nodejs libnode-dev
 
 The native build works with the GCC 13 and Node.js 18 packages on Ubuntu 24.04. For the JavaScript fallback and `make sdk`, use Node.js 20 or newer with npm in the Linux shell. If your distribution ships an older version, install a current LTS release inside Linux and check `node --version` and `npm --version`. [Node.js downloads](https://nodejs.org/en/download)
 
-Clone the distribution and its pinned source dependencies. Use GitHub credentials with access to this repository and its private submodules.
+Clone the distribution and its pinned source dependencies. The required SDCC, Bintools, JavaScript emulator, C instruction emulator and Stefan BASIC forks currently require GitHub credentials with read access.
 
 ```
 git clone --recurse-submodules https://github.com/alex31/centurion_centos6_sdcc.git
@@ -83,7 +83,7 @@ to `build/inputs/` before cleaning the build. Git ignores both
 `build/inputs/` and `build/out/`. Use `make clean` to delete the generated
 files in `build/out/` and keep the local inputs.
 
-Build the compilers, emulator, applications and bootable CENTOS image.
+Build the cross-compiler, host tools, headless emulator, applications and bootable CENTOS image.
 
 ```
 ./dobuild -j2 JOBS=4
@@ -223,7 +223,7 @@ Stored programs compile to typed bytecode. The REPL includes an editor, and `DEF
 
 - The SDCC C sieve produced all 1,229 primes through 9,973 in **8.81 s**, including console output. The original CENTOS CPL sieve took **97.09 s** for the same primes. [Sieve measurements and compiler comparisons](doc/performance.md#prime-sieve)
 
-- The C and BASIC versions of `LIFE1D` reproduce Jon Millen's rule with the same fixed seed and 27 output rows. From the first row to the last, the C program took **1.98 s** and integer BASIC took **6.76 s**. Life1D took **12 min 38 s** for its first 26 generations under CENTOS BASIC 6.03. [C Life1D](doc/performance.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/performance.md#basic-benchmarks)
+- The Life benchmark uses seed 1 for both C and BASIC and verifies all 27 output rows. The C application on disk chooses its seed at runtime. From the first row to the last, the C program took **1.98 s** and integer BASIC took **6.76 s**. Life1D took **12 min 38 s** for its first 26 generations under CENTOS BASIC 6.03. [C Life1D](doc/performance.md#one-dimensional-life) · [BASIC Life1D and 8-bit benchmarks](doc/performance.md#basic-benchmarks)
 
 These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.  [Benchmark results](doc/performance.md)
 
@@ -232,7 +232,6 @@ These times use the microcoded CPU6 emulator at its nominal 5 MHz rate.  [Benchm
 | Project | Role | Upstream |
 | --- | --- | --- |
 | SDCC | Cross-compiler adapted to CPU6 | [Small Device C Compiler](https://sdcc.sourceforge.net/) |
-| - | - | - |
 | Fuzix-Bintools | EE200 assembler and linker, from Alan Cox's Fuzix tools | [Fuzix-Bintools](https://codeberg.org/EtchedPixels/Fuzix-Bintools) |
 | Fuzix Compiler Kit, EE200 runtime | Historical runtime assembly and provenance | [EE200 support sources](https://github.com/EtchedPixels/Fuzix-Compiler-Kit/tree/7b2a72edea6967e7df0b32e1e898fdea1754cc67/supportee200) |
 | CenRE and the Centurion JavaScript server | Modified emulator derived from Meisaka Yukara's CenRE and the server adaptation by billsargent | [Centurion JavaScript emulator](https://github.com/billsargent/centurion) |

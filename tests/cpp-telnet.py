@@ -144,6 +144,11 @@ def smoke(first_port, image, kermit=False, format_data=False):
                         await_text(secondary, b'\xff\xfb\x01')
                     if kermit:
                         transfer_executable(crt, sender, payload, first_port + 4)
+                    manager.sendall(b'u')
+                    await_text(manager, b'Select the drive to unmount')
+                    manager.sendall(b'0')
+                    await_text(manager, b'(empty)')
+                    # Saving the still-mounted system disk also checks isolation of the eject.
                     process.stdin.write(b'save snapshot.img\nq\n')
                     process.stdin.flush()
                     assert process.wait(timeout=10) == 0

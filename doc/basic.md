@@ -7,7 +7,7 @@ and a C version of the one-dimensional Life example for comparison.
 
 ## Start the REPL
 
-Boot the [application image](../README.md#start-a-centos-session) in the JavaScript emulator
+Boot the [application image](../README.md#start-a-centos-session) in either the native or the JavaScript emulator
 and enter `BASIC` at the CENTOS prompt. This starts the job in the
 `SBASIC` library and loads the native module when required. After `.BYE`,
 enter `BASIC` again to reopen the REPL.
@@ -23,7 +23,7 @@ enter `BASIC` again to reopen the REPL.
 `LIFE1D` runs 26 generations of one-dimensional Life after displaying its
 initial state.
 
-To build a disk with just BASIC and its examples, use the same local
+To add BASIC, its examples and the 24 BASIC games to a seed disk, use the same local
 firmware and CENTOS seed as the full distribution build.
 
 ```sh

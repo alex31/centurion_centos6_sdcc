@@ -178,21 +178,28 @@ def separate(arguments):
         arg=arguments[i];i+=1
         if arg=='--':files=True;continue
         if not files and arg.startswith('-'):
-            if len(arg)<2 or arg[1] not in ARGUMENTS|SWITCHES:raise ValueError('unsupported linker option '+arg)
-            key=arg[1];options.append(arg)
-            if key in ARGUMENTS:
-                value=arg[2:]
-                if not value:
-                    if i==len(arguments):raise ValueError('missing argument for '+arg)
-                    value=arguments[i];i+=1;options.append(value)
-                if key=='u':roots.append(value)
-            elif any(key not in SWITCHES for key in arg[1:]):raise ValueError('unsupported linker switches '+arg)
+            if len(arg) == 1:
+                raise ValueError('unsupported linker option '+arg)
+            for pos, key in enumerate(arg[1:], start=1):
+                if key not in ARGUMENTS | SWITCHES:
+                    raise ValueError('unsupported linker option -'+key)
+                if key == 'r':
+                    raise ValueError('GC currently requires a final link, not -r')
+                options.append('-'+key)
+                if key in ARGUMENTS:
+                    value = arg[pos+1:]
+                    if not value:
+                        if i == len(arguments):raise ValueError('missing argument for '+arg)
+                        value = arguments[i]
+                        i += 1
+                    options.append(value)
+                    if key == 'u':roots.append(value)
+                    break
         else:paths.append(Path(arg).resolve(strict=True))
     return options,paths,roots
 
 def link(arguments,entry='start',keep=(),report=None):
     options,paths,undefined_roots=separate(arguments)
-    if any(option=='-r' for option in options):raise ValueError('GC currently requires a final link, not -r')
     units=read_units(paths);roots=[entry,*keep,*undefined_roots];live=select(units,roots)
     records=[]
     with tempfile.TemporaryDirectory(prefix='cpu6-gc-') as temporary:

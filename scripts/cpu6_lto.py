@@ -112,7 +112,11 @@ def candidate(function, private):
             operands = [part.strip() for part in args.split(',')]
             if len(operands) != 2 or operands[-1] not in ('a', 'b'):
                 compact = False
-    return {'body': body if compact else lines[:-1],
+    # The assembler compares the first 16 characters of a symbol. A public
+    # reference must still resolve to the same definition after importing it.
+    references = {token[:16] for line in body for token in TOKEN.findall(instruction(line)[1])
+                  if token not in labels}
+    return {'body': body if compact else lines[:-1], 'references': references,
             'mode': 'compact' if compact else 'frame-preserving'}, None
 
 
@@ -166,6 +170,7 @@ def optimize(paths, report_path, no_inline=()):
     exported = [{line.strip().split()[1] for line in lines if line.strip().startswith('.export ')} for lines in units]
     private = [{line[:-1] for line in lines if line.endswith(':')} - public
                for lines, public in zip(units, exported)]
+    private_names = [{name[:16] for name in names} for names in private]
     available, rejected = {}, {}
     # An explicitly mapped function must retain its own body and page. This
     # also covers declarations in a different translation unit from its body.
@@ -211,7 +216,8 @@ def optimize(paths, report_path, no_inline=()):
                 callee, description = available[target]
                 body, mode = description['body'], description['mode']
                 cost = sum(bool(instruction(item)[0]) for item in body)
-                if callee.unit == caller.unit or cost > budget or sites >= 8:
+                if (callee.unit == caller.unit or cost > budget or sites >= 8
+                        or description['references'] & private_names[unit]):
                     output.append(line)
                     continue
                 labels = {item[:-1]: fresh() for item in body if item.endswith(':')}

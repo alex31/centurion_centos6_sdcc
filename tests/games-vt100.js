@@ -8,8 +8,7 @@ const CONNECT_PROMPT = 'Column (1-7), or Q to quit: ';
 const CONNECT_BORDER = ' +---+---+---+---+---+---+---+';
 const CHOMP_PROMPT = 'Your move (ROW COLUMN, or Q to quit): ';
 const CHESS_MENU = '(W/B/2/Q): ';
-const CHESS_PROMPT = '\x1b[K> ';
-const TERMINAL_PROMPT = 'Terminal [V]T100 / [A]DDS / A[U]TO (Enter for VT100): ';
+const TERMINAL_PROBE = '\x1b[c\x1b\x05';
 const CHESS_OPENING = [
     'rnbqkbnr', 'pppppppp', '        ', '        ',
     '        ', '        ', 'PPPPPPPP', 'RNBQKBNR',
@@ -17,20 +16,37 @@ const CHESS_OPENING = [
 
 async function checkGames(image) {
     const session = new OS6Session(image);
+    const vt100 = process.env.CENTURION_OS6_BACKEND !== 'cpp';
+    const terminal = vt100 ? 'VT100' : 'ADDS';
+    const chessPrompt = vt100 ? '\x1b[K> ' : '\x1bK> ';
+    const clearScreen = vt100 ? /\x1b\[2J/ : /\f/;
     const cell = (row, col) => String.fromCharCode(session.cell(col - 1, row - 1) & 127);
     const rowText = row => Array.from({length: 80}, (_, i) => cell(row, i + 1)).join('');
+
+    // Replace the JS backend's built-in ADDS device. The session records the
+    // wire output and we reply to the probe with VT100 device attributes.
+    if (vt100) session.port.bind_dev({rts: true, receive() {}, check_send() {}, set_cts() {}});
 
     function checkConnectBorders() {
         assert.equal(rowText(5).trimEnd(), CONNECT_BORDER, 'Top border');
         assert.equal(rowText(12).trimEnd(), CONNECT_BORDER, 'Bottom border');
     }
 
-    async function enter(command, prompt) {
+    async function enter(command, prompt, detectTerminal = false) {
         const from = session.output.length;
         await session.send(command + '\r');
+        if (detectTerminal && vt100) {
+            await session.waitFor(TERMINAL_PROBE, from);
+            await session.send('\x1b[?1;0c');
+        }
         await session.waitFor(prompt, from, 90000);
         const reply = session.output.slice(from);
         assert.doesNotMatch(reply, /ABORT\s+\d|JX\s*\d|Engine error/);
+        if (detectTerminal) {
+            assert.ok(reply.includes(TERMINAL_PROBE), 'Missing terminal probe');
+            assert.doesNotMatch(reply, /Terminal \[V\]|Detecting terminal/);
+            assert.match(reply, clearScreen);
+        }
         return reply;
     }
 
@@ -82,10 +98,9 @@ async function checkGames(image) {
         assert.match(chompMove, /^3   \. \. \./m);
         await enter('11', 'You took the poisoned square. Computer wins.');
         await enter('.STA', 'STATUS DISPLAY');
-        console.log('PASS: XCHOMP is listed in SDCC and plays to completion on the VT100.');
+        console.log('PASS: XCHOMP is listed in SDCC and plays to completion.');
 
-        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
-        await enter('', CONNECT_PROMPT);
+        await enter('.RUN SDCC.XCONNECT4', CONNECT_PROMPT, true);
         assert.match(rowText(1), /^CONNECT FOUR/);
         checkConnectBorders();
         await enter('0', CONNECT_PROMPT);
@@ -102,26 +117,25 @@ async function checkGames(image) {
         assert.deepEqual(board, expected);
         await enter('Q', 'End of Connect Four.');
         await enter('.STA', 'STATUS DISPLAY');
-        console.log('PASS: Connect Four handles input and displays both moves on the VT100 board.');
+        console.log(`PASS: Connect Four detects ${terminal} silently and displays both moves.`);
 
-        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
-        await enter('V', CHESS_MENU);
-        await enter('2', CHESS_PROMPT);
+        await enter('.RUN SDCC.XCHESS', CHESS_MENU, true);
+        await enter('2', chessPrompt);
         const chess = CHESS_OPENING.map(rank => [...rank]);
         chessBoard(chess);
-        await enter('HELP', CHESS_PROMPT);
+        await enter('HELP', chessPrompt);
         assert.match(rowText(24), /^e2e4 \| Castling/);
-        await enter('e2e5', CHESS_PROMPT);
+        await enter('e2e5', chessPrompt);
         assert.match(rowText(24), /^Illegal move/);
         chessBoard(chess);
-        await enter('x'.repeat(75), CHESS_PROMPT);
+        await enter('x'.repeat(75), chessPrompt);
         assert.match(rowText(24), /^Illegal move/);
         chessBoard(chess);
 
         for (const move of ['e2e4', 'h7h6', 'e4e5', 'd7d5', 'e5d6', 'c7d6',
                             'g1f3', 'g8f6', 'f1e2', 'b8c6', 'e1g1']) {
-            const bytes = await enter(move, CHESS_PROMPT);
-            assert.doesNotMatch(bytes, /\x1b\[2J/, 'A move cleared the VT100 screen');
+            const bytes = await enter(move, chessPrompt);
+            assert.doesNotMatch(bytes, clearScreen, 'A move cleared the screen');
             play(chess, move.slice(0, 2), move.slice(2));
             if (move === 'e5d6') chess[3][3] = ' '; // En passant removes the pawn on d5.
             if (move === 'e1g1') play(chess, 'h1', 'f1');
@@ -131,11 +145,10 @@ async function checkGames(image) {
         }
         await enter('Q', 'End of Chess.');
         await enter('.STA', 'STATUS DISPLAY');
-        console.log('PASS: Chess displays legal play, en passant and castling on the VT100 board.');
+        console.log(`PASS: Chess detects ${terminal} silently and displays legal play, en passant and castling.`);
 
-        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
-        await enter('V', CHESS_MENU);
-        await enter('B', CHESS_PROMPT);
+        await enter('.RUN SDCC.XCHESS', CHESS_MENU, true);
+        await enter('B', chessPrompt);
         const opening = /^Computer plays ([a-h][12])([a-h][34])/.exec(rowText(24));
         assert.ok(opening, rowText(24));
         const delta = Math.abs(opening[1].charCodeAt(0) - opening[2].charCodeAt(0));
@@ -153,34 +166,6 @@ async function checkGames(image) {
         await enter('Q', 'End of Chess.');
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Chess computer plays a legal opening move with the board flipped.');
-
-        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
-        assert.match(await enter('A', CONNECT_PROMPT), /\f/);
-        assert.match(rowText(1), /^CONNECT FOUR/);
-        await enter('4', CONNECT_PROMPT);
-        assert.equal(cell(11, 16), 'X');
-        assert.match(rowText(14), /^Computer: column [1-7]/);
-        checkConnectBorders();
-        await enter('Q', 'End of Connect Four.');
-        await enter('.STA', 'STATUS DISPLAY');
-        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
-        assert.match(await enter('A', CHESS_MENU), /\f/);
-        await enter('2', '\x1bK> ');
-        const addsChess = CHESS_OPENING.map(rank => [...rank]);
-        chessBoard(addsChess);
-        await enter('e2e4', '\x1bK> ');
-        play(addsChess, 'e2', 'e4');
-        chessBoard(addsChess);
-        await enter('Q', 'End of Chess.');
-        await enter('.STA', 'STATUS DISPLAY');
-        console.log('PASS: Connect Four and Chess use native ADDS positioning and reverse video.');
-
-        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
-        assert.match(await enter('U', CONNECT_PROMPT), /\x1bY/);
-        assert.match(rowText(1), /^CONNECT FOUR/);
-        await enter('Q', 'End of Connect Four.');
-        await enter('.STA', 'STATUS DISPLAY');
-        console.log('PASS: Auto mode selects the screen profile from a terminal reply.');
     } finally {
         session.stop();
     }
