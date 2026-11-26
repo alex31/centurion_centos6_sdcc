@@ -138,6 +138,41 @@ Use the BSD function `strsep(&cursor, ",")` to keep empty fields. Initialize
 `cursor` to the start of a writable buffer. For `"a,,b,"`, successive calls
 return `"a"`, `""`, `"b"`, `""`, then `NULL`. [BSD reference](https://man.openbsd.org/strsep.3)
 
+## Sorting, random numbers and console input
+
+`<stdlib.h>` provides `qsort`, `rand`, `srand` and `exit` on both
+targets. `qsort` sorts in place with a bounded stack. `rand` returns
+values from 0 through `RAND_MAX` (32,767). The initial sequence is the one
+selected by `srand(1)`. On CENTOS, `exit(status)` flushes buffered `printf`
+output and passes the low eight bits of `status` to CENTOS. On bare metal,
+`exit` halts the CPU.
+
+`strtol(text, &end, base)` parses a signed 32-bit integer and reports
+where the number ends. Use `end == text` to detect missing digits and
+`errno == ERANGE` to detect overflow after clearing `errno`. Check the
+unparsed suffix and the application's bounds before narrowing to `int`.
+`<errno.h>` declares `errno` for both targets.
+
+`getchar()` is declared in `<stdio.h>`. On CENTOS it returns the
+seven-bit characters of the edited console line, including trailing
+spaces, followed by one newline. Long lines can span multiple native
+records. `os6_discard_line()` consumes the rest of the current line
+after a `getchar()` read. At a line boundary it returns immediately.
+On bare metal, `getchar()` polls the MUX channel 0 receiver and returns one byte.
+
+For text input with a fixed buffer, `os6_getline_checked()` returns the
+line length excluding the newline. It accepts printable ASCII and
+horizontal tabs delivered by the console. A line with a control
+character returns `OS6_LINE_INVALID`. A line exceeding the available
+space returns `OS6_LINE_TOO_LONG`. In either case the function consumes
+the line and sets the destination to an empty string before the next read.
+
+The CENTOS `<time.h>` provides `time()` and an unsigned 32-bit `time_t`
+counting seconds since 1970-01-01, using the configured system clock.
+CENTOS stores a two-digit year. The SDK interprets years 70–99 as
+1970–1999 and years 00–69 as 2000–2069. An invalid clock reading yields
+`(time_t)-1`.
+
 ## CPU6 ABI and arithmetic
 
 The target is big-endian and uses 16-bit words. The backend uses X, Y and
@@ -325,8 +360,8 @@ code calling C must preserve shared arithmetic scratch state. All native
 | `make tests` | Quick check plus 22 regression cases built at `-O0` and `-O1`. All 44 binaries run on the C instruction emulator and the JavaScript microcoded emulator. A compile-only case checks the removal of an unreachable indirect store |
 | `make alltests` | The main regression plus the generated compiler audit and extended tests for integer arithmetic, float32, ABI, inline assembly, optimizer passes, assembler and linker |
 | `make tests-web` | Exercise the HTTP and WebSocket console, CPU controls, image round trip and server shutdown |
-| `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Install and run a compiled program in a new CENTOS disk copy and confirm return to the shell |
-| `make tests-games` | Play Chomp, Connect Four and chess from the generated application image and check the VT100 screen after moves. Set `APP_IMAGE` to test a different image |
+| `make tests-centos SEED=/path/to/CENTOS_13.IMG` | Run compiled programs on a new CENTOS disk copy and verify console input, calendar time, and JCL completion status |
+| `make tests-games` | Play Chomp, Connect Four, chess and Wumpus from the generated application image. Check VT100 moves and Wumpus input handling. Set `APP_IMAGE` to test a different image |
 | `make tests-finch` | Format a scratch Finch track, read and replace a sector, and verify that adjacent data is preserved on the microcoded simulator |
 | `make bench-basic` | Run the Rugg/Feldman BM1 and BM2 BASIC benchmarks at the nominal 5 MHz CPU6 rate. Set `APP_IMAGE` to test a different image |
 

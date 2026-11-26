@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the optional hardware drivers for CPU6 bare-metal programs."""
+"""Build the optional hardware and console support for CPU6 bare-metal programs."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -17,26 +17,27 @@ def main():
     assembler = TOOLS / 'bin/asee200'
     destination = TOOLS / 'lib/cpu6'
     destination.mkdir(parents=True, exist_ok=True)
-    source = BAREMETAL / 'finch.c'
-    dma = BAREMETAL / 'finch_dma.s'
+    sources = [BAREMETAL / name for name in ('finch.c', 'finch_dma.s', 'getchar.c', 'exit.s')]
     includes = BAREMETAL / 'include'
     flags = ['-mcpu6', '--std=c99', '--opt-code-size', '-I' + str(includes)]
     with tempfile.TemporaryDirectory(prefix='.baremetal-', dir=destination) as directory:
         work = Path(directory)
-        assembly = work / 'finch.s'
-        subprocess.run([compiler, '-S', *flags, '-o', assembly, source], check=True)
         objects = []
-        for unit in (assembly, dma):
-            obj = work / (unit.stem + '.o')
-            subprocess.run([assembler, '-o', obj, unit], check=True)
-            attach(obj, unit.read_text())
+        for source in sources:
+            assembly = source
+            if source.suffix == '.c':
+                assembly = work / (source.stem + '.s')
+                subprocess.run([compiler, '-S', *flags, '-o', assembly, source], check=True)
+            obj = work / (source.stem + '.o')
+            subprocess.run([assembler, '-o', obj, assembly], check=True)
+            attach(obj, assembly.read_text())
             objects.append(obj)
         archive = work / 'libbaremetal-sdcc.a'
         subprocess.run(['ar', 'qc', archive, *objects], check=True)
         output = destination / archive.name
         archive.replace(output)
     write_manifest(output, compiler_info(compiler), flags,
-                   input_hashes([source, dma, *sorted(includes.glob('*.h'))]), profile='size')
+                   input_hashes([*sources, *sorted(includes.glob('*.h'))]), profile='size')
     print('Built', output)
 
 

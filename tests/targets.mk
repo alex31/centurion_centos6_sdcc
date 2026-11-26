@@ -30,12 +30,14 @@ tests-centos: check
 	@work=$$(mktemp -d "$(TEST_OUT)/centos.XXXXXX") && \
 		"$(ROOT)/run/cpu6-os6-install" "$(SEED)" "$(TEST_OUT)/smoke/hello.exf" XHELLO6 "$$work/centos.img" && \
 		node "$(TESTS)/centos.js" "$$work/centos.img"
+	$(PYTHON) "$(TESTS)/libc-stdlib.py" --centos "$(SEED)"
 
 tests-web: emulator
 	node "$(TESTS)/web-console.js" $(if $(WEB_SEED),"$(WEB_SEED)")
 
 tests-games: emulator
 	node "$(TESTS)/games-vt100.js" "$(APP_IMAGE)"
+	node "$(TESTS)/wumpus.js" "$(APP_IMAGE)"
 
 tests-finch: sdk
 	@mkdir -p "$(TEST_OUT)" && work=$$(mktemp -d "$(TEST_OUT)/finch.XXXXXX") && \

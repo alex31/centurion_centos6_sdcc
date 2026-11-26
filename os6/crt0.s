@@ -46,6 +46,7 @@ __osstack_end:
 
 	.code
 	.export start
+	.export __os6_finish
 start:
 	lda __osctx
 	xfr a,s
@@ -68,6 +69,7 @@ ready:
 	lda __osstack_end
 	xfr a,s
 	jsr _main
+__os6_finish:
 	stbb (__exit_code)
 	; CLOSE CRT and STOP using the low byte returned by main.
 	.byte 0x66,0x3a,0x0a

@@ -15,6 +15,7 @@ own license terms and copyright notices.
 | 101 BASIC Computer Games listings | [Upstream catalog and attribution](swext/101-basic-games/README.md) and listing-specific credits |
 | mcu-max | [MIT license](swext/mcu-max/LICENSE) |
 | E-Kermit | [Revised three-clause BSD license](swext/ekermit/COPYING) |
+| Hunt the Wumpus | [Caldera license](image/programs/wumpus/LICENSE) |
 | Historical EE200 assembly runtime (optional checkout) | [Upstream notice](https://github.com/EtchedPixels/Fuzix-Compiler-Kit#licence) and [source provenance](#source-provenance) |
 
 The build installs TypeScript and ws from npm, with their own notices.
@@ -23,6 +24,12 @@ See the [Centurion archive notice](https://github.com/Nakazoto/CenturionComputer
 for access information.
 
 ## Source provenance
+
+Wumpus adapts `usr/src/games/wump.c` from the Henry Spencer archive of
+Research UNIX V7. The upstream file has SHA-256
+`48ceb09de03d02e440e2fdbaa45c6076e70bf97a965470ad96cfc6979f15b250`.
+This product includes software developed or owned by Caldera
+International, Inc. [UNIX V7 source archive](https://www.tuhs.org/Archive/Distributions/Research/Henry_Spencer_v7/)
 
 The distribution pins its dependencies in `.gitmodules` and Git. Use
 `git submodule update --init --recursive` to check out their pinned

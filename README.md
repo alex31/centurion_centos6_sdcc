@@ -141,10 +141,16 @@ The web console provides both CRTs, CPU controls, **Load image**, **Save image**
 | `.RUN SDCC.XSIEVE` | SDCC-compiled prime sieve |
 | `.RUN SDCC.XCONNECT4` | Connect Four |
 | `.RUN SDCC.XCHOMP` | Chomp against the computer on boards from 1 × 1 through 9 × 9 |
+| `.RUN SDCC.XWUMPUS` | Hunt the Wumpus from Research UNIX V7 |
 | `.RUN SDCC.XCHESS` | Chess |
 | `.RUN SDCC.XLIFE1D` | One-dimensional Life in C |
 | `.RUN SDCC.XKERMIT` | E-Kermit receiver for CRT1 |
 | `RUNTESTS` | Run the 44 CENTOS executables from the main CPU6 compiler regression suite |
+
+In Wumpus, enter `M` to move, `S` to shoot or `Q` to quit. You can enter
+room numbers on the command line. End an arrow path with `0` or enter
+five rooms. This product includes software developed or owned by Caldera
+International, Inc. [Wumpus license](image/programs/wumpus/LICENSE)
 
 Chomp accepts boards from 1 × 1 to 9 × 9. Enter the row then the column,
 as in `1 2`, and use `Q` to return to CENTOS. To build a separate Chomp

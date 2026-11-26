@@ -50,6 +50,7 @@
 #define CENTURION_MUX_RESET_ADDR(card) (CENTURION_MUX_CARD_ADDR(card) + 0xFu)
 /* A read at card 0's reset address returns interrupt information. */
 #define CENTURION_MUX_IRQ_INFO_ADDR CENTURION_MUX_RESET_ADDR(0)
+#define CENTURION_MUX_STATUS_RX_READY 0x01u
 #define CENTURION_MUX_STATUS_TX_EMPTY 0x02u
 
 /* The PROM on the FFC card selects its base address. */

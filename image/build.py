@@ -50,6 +50,7 @@ def build_programs(work):
         ],
         'XCONNECT4': [connect4 / 'connect4.c', connect4 / 'game.c', connect4 / 'os6_clock.s'],
         'XCHOMP': ['-I', work, chomp / 'chomp.c'],
+        'XWUMPUS': [examples / 'wumpus' / 'wump.c'],
         'XSIEVE': [sieve / 'sieve_optimise.c', sieve / 'clock.s'],
         'XKERMIT': [
             '-DNO_AT', '-DNO_CTRLC', '-DNO_SSW', '-DNO_SCAN', '-DOBUFLEN=256',
@@ -132,6 +133,7 @@ def main():
     run('node', ROOT / 'tests/apps-image.js', final_image, str(test_count))
     run('node', ROOT / 'tests/basic-life.js', final_image, '1', work / 'basic-life.json')
     run('node', ROOT / 'tests/games-vt100.js', final_image)
+    run('node', ROOT / 'tests/wumpus.js', final_image)
     with tempfile.TemporaryDirectory(prefix='.image-', dir=output.parent) as directory:
         pending = Path(directory) / output.name
         if output == DEFAULT_OUTPUT:

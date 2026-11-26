@@ -21,6 +21,9 @@ bit_generator = bit_runtime / 'bitops.py'
 bit_sources = sorted(bit_runtime.glob('*.s'))
 strings = root / 'lib/string'
 string_header = root / 'baremetal/include/string.h'
+stdlib = sorted((root / 'lib/stdlib').glob('*.c'))
+stdlib_header = root / 'baremetal/include/stdlib.h'
+errno_header = stdlib_header.with_name('errno.h')
 compiler = root / 'build/out/toolchain/sdcc-cpu6/bin/sdcc'
 assembler = root / 'build/out/toolchain/bin/asee200'
 flags = ['-mcpu6', '--std=c99', '--opt-code-' + args.profile]
@@ -49,6 +52,11 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
                     strings / 'string.c'], check=True)
     objects += assemble_members(string_asm, work, assembler, 'str')
     objects += assemble_members(strings / 'memory.s', work, assembler, 'strmem')
+    for source in stdlib:
+        stdlib_asm = work / (source.stem + '.s')
+        subprocess.run([compiler, '-S', *flags, '--cpu6-no-auto-inline',
+                        '-I' + str(stdlib_header.parent), '-o', stdlib_asm, source], check=True)
+        objects += assemble_members(stdlib_asm, work, assembler, source.stem)
     archive = work / 'libcompiler-sdcc.a'
     subprocess.run(['ar', 'qc', archive, *objects], check=True)
     with tempfile.TemporaryDirectory(prefix='.stage-', dir=destination) as stage:
@@ -57,5 +65,7 @@ with tempfile.TemporaryDirectory(prefix='cpu6-compiler-runtime-') as temporary:
         os.replace(staged, destination / archive.name)
     write_manifest(destination/archive.name, compiler_info(compiler),
                    flags, input_hashes([*sources, generator, *bit_sources, bit_generator,
-                                        strings / 'string.c', strings / 'memory.s', string_header]), profile=args.profile)
+                                        strings / 'string.c', strings / 'memory.s', string_header,
+                                        *stdlib, stdlib_header, errno_header,
+                                        stdlib_header.with_name('stdint.h')]), profile=args.profile)
 print('Built', destination / archive.name)
