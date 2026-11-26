@@ -146,9 +146,9 @@ following the prime output. [Distributed C source](../image/programs/sieve/sieve
 | Original CPL `USAGI.XSIEVE` | 353,559,966 | 70.71 s | 97.09 s |
 | Optimized C `SDCC.XSIEVE` | 535,308 | 0.107 s | 8.81 s |
 
-Three runs of the distributed C executable on the JavaScript microcoded
-emulator reproduced both the 535,308-microcycle kernel and the
-44,054,442 microcycles through the report.
+The C kernel took 535,308 microcycles in each of three runs on the
+JavaScript microcoded emulator. Through the timing report, the median
+was 44,050,192 microcycles and the range was 44,050,192–44,054,384.
 
 ## One-dimensional Life
 
@@ -173,7 +173,7 @@ update, at the CPU6's nominal 5 MHz rate.
 | --- | ---: | ---: |
 | `1DLIFE_CEN.BAS` on CENTOS BASIC 6.03 | 3,789,764,651 | 757.95 s (12 min 38 s) |
 | Distributed integer bytecode BASIC | 33,811,416 | 6.76 s |
-| Distributed C compiled by SDCC | 9,893,554 | 1.98 s |
+| Distributed C compiled by SDCC | 9,893,529 | 1.98 s |
 
 The CENTOS BASIC 6.03 row reports one full emulator run, with generation times
 between 28.79 and 29.45 s. The C and BASIC benchmark builds used the
@@ -202,8 +202,9 @@ image used about 0.11% fewer microcycles. [Life regression](../tests/basic-life.
 
 The Rugg/Feldman suite covers loops, arithmetic, subroutines, arrays and
 transcendental functions. The Ahl benchmark exercises square root, square
-and random-number generation. The CPU6 timings below were verified in three fresh sessions on the native
-microcoded emulator with the image's Stefan BASIC module `MA485BBBC`.
+and random-number generation. The CPU6 timings below were verified in
+three fresh sessions on the native microcoded emulator with the image's
+Stefan BASIC module `M3A1C4A97`.
 They use the default real variables and count microsteps between two markers
 after bytecode compilation. The benchmark validates the final values after the end marker.
 The C64 column gives published timings from *Practical Computing* and

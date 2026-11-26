@@ -50,11 +50,14 @@ def connect(port, process):
 def make_sender(work):
     sender, payload = (work / name for name in ('e-kermit-send', 'hello.exf'))
     source = ROOT / 'swext/ekermit'
-    subprocess.run([
-        'cc', '-O2', '-DNODEBUG', '-DNO_CTRLC', '-DNO_SSW', '-DNO_AT', '-DNO_SCAN',
-        '-DSTATIC=static', '-DP_PKTLEN=512', '-DFN_MAX=16', '-I', source,
-        ROOT / 'tests/cpp-kermit-sender.c', source / 'kermit.c', '-o', sender,
-    ], check=True)
+    flags = ['cc', '-O2', '-DNODEBUG', '-DNO_CTRLC', '-DNO_SSW', '-DNO_AT', '-DNO_SCAN',
+             '-DSTATIC=static', '-DP_PKTLEN=512', '-DFN_MAX=16', '-I', source]
+    receiver = work / 'receiver-test'
+    subprocess.run([*flags, ROOT / 'tests/kermit-receiver.c', source / 'kermit.c',
+                    '-o', receiver], check=True)
+    subprocess.run([receiver], check=True)
+    subprocess.run([*flags, ROOT / 'tests/cpp-kermit-sender.c', source / 'kermit.c',
+                    '-o', sender], check=True)
     subprocess.run([
         ROOT / 'run/cpu6-os6-sdcc', '--gc-sections', ROOT / 'examples/hello_os6.c', '-o', payload,
     ], cwd=ROOT, check=True)

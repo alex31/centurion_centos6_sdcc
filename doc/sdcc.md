@@ -219,7 +219,8 @@ provides `printf()` with `%s`, `%c`, `%d`, `%u`, `%x`, `%ld`, `%lu`, `%lx`
 and `%%`. Integer conversions take 16-bit arguments or 32-bit arguments
 with `l`. Field width, precision, flags and floating-point conversions
 are outside this formatter's interface. `os6_printf_buffered(1)` batches
-writes across calls. Flush with `os6_printf_flush()` before mixing output
+writes across calls. Returning from `main` or calling `exit()` flushes
+the final batch. Flush with `os6_printf_flush()` before mixing output
 with `putchar()` or `puts()`, or before reading from the console.
 
 ### Screen control and single keystrokes on CENTOS
