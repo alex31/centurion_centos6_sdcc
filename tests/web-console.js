@@ -38,7 +38,9 @@ if (!native) {
         };
         // Test the empty drive even if the user has staged a default boot disk.
         fs.existsSync = file => !/[\\/]disks[\\/]CENTOS_13\.IMG$/.test(String(file)) && exists(file);
+        const before = process.listenerCount('uncaughtException');
         require(path.join(built, 'server/src/server.js'));
+        assert.equal(process.listenerCount('uncaughtException'), before);
     } finally {
         net.Server.prototype.listen = listen;
         fs.existsSync = exists;
@@ -158,6 +160,19 @@ async function checkTerminalStatusBeforeConnect() {
         client?.peer.destroy();
         client?.destroy();
         crt1.receive = receive;
+    }
+}
+
+function checkCoreConfig() {
+    const {brload, brsave, to_csr, from_csr} = global.window;
+    const config = {CRT1: 'écran 🖥', '0123': 'disk', '0head': 'spare',
+        flags: [true, false, true], eight: Array(8).fill(false)};
+    assert.deepEqual(brload(brsave(config).buffer), config);
+    // Older settings packed short boolean arrays in tag 6 and restored them into defaults.
+    assert.deepEqual(brload(Uint8Array.from([198, 5]).buffer, [false, false, false]), config.flags);
+    for (let size = 0; size <= 12; size++) {
+        const bytes = Uint8Array.from({length: size}, (_, i) => 128 + i);
+        assert.deepEqual(new Uint8Array(from_csr(to_csr(bytes.buffer))), bytes);
     }
 }
 
@@ -306,6 +321,7 @@ async function main() {
     if (native)
         await launchNative();
     else {
+        checkCoreConfig();
         checkDiskManager();
         await checkTerminalStatusBeforeConnect();
     }
