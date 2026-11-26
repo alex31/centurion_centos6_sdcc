@@ -60,19 +60,21 @@ function openConsole({html, script, host, request, openSocket}) {
         constructor() { super(2026, 10, 19, 14, 23, 45); }
     }
     const createElement = () => new Element();
+    const document = Object.assign(new Element(), {
+        getElementById: id,
+        querySelectorAll: selector => selector === '[data-action]' ? [...actions.values()] : [],
+        querySelector: selector => boot[Number(selector.match(/^\.boot\[data-port="([01])"\]$/)?.[1])],
+        createDocumentFragment: createElement,
+        createElement,
+        createTextNode: text => Object.assign(new Element(), {text}),
+    });
+    const window = Object.assign(new Element(), {confirm: () => true});
     vm.runInNewContext(script, {
-        document: {
-            getElementById: id,
-            querySelectorAll: selector => selector === '[data-action]' ? [...actions.values()] : [],
-            querySelector: selector => boot[Number(selector.match(/^\.boot\[data-port="([01])"\]$/)?.[1])],
-            createDocumentFragment: createElement,
-            createElement,
-            createTextNode: text => Object.assign(new Element(), {text}),
-        },
+        document,
         location: {host, assign: route => { download = request(route); }},
-        window: {confirm: () => true},
+        window,
         WebSocket: ClientSocket,
-        Date: LocalDate, URLSearchParams, setTimeout,
+        Date: LocalDate, URLSearchParams, setTimeout, clearTimeout,
         fetch: async (route, {method, body}) => {
             const result = await request(route, method, body?.data, {Origin: 'http://' + host});
             return {ok: result.status >= 200 && result.status < 300, text: async () => result.body.toString()};

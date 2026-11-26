@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+server="$root/build/out/emulator/server/src/server.js"
+case "${1-}" in
+    -h|--help)
+        printf '%s\n' 'Usage: centurion-system-js [hawk-image]' \
+            'Launch the JavaScript emulator.' \
+            'Web console at http://127.0.0.1:42646/' \
+            'Telnet CRT0 is available at 127.0.0.1:2324.'
+        exit 0
+        ;;
+esac
+if [ "$#" -gt 1 ]; then
+    printf '%s\n' 'Usage: centurion-system-js [hawk-image]' >&2
+    exit 2
+fi
+if [ ! -f "$server" ]; then
+    printf '%s\n' 'Build the JavaScript emulator with make emulator.' >&2
+    exit 1
+fi
+if [ "$#" -eq 1 ]; then
+    export CENTURION_DISK_IMAGE="$1"
+elif [ -z "${CENTURION_DISK_IMAGE-}" ] && [ -r "$root/build/out/image/centos-apps.img" ]; then
+    export CENTURION_DISK_IMAGE="$root/build/out/image/centos-apps.img"
+fi
+if [ -n "${CENTURION_DISK_IMAGE-}" ] && [ ! -r "$CENTURION_DISK_IMAGE" ]; then
+    printf 'Disk image is unreadable: %s\n' "$CENTURION_DISK_IMAGE" >&2
+    exit 1
+fi
+exec node "$server"

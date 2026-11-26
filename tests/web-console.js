@@ -159,6 +159,34 @@ async function checkTerminalStatusBeforeConnect() {
     }
 }
 
+async function checkConsoleReconnect(html, script) {
+    const sockets = [];
+    const page = openConsole({
+        html, script, host, request,
+        openSocket(url) {
+            const socket = new WebSocket(url, {origin, createConnection: native ? undefined : createConnection});
+            sockets.push(socket);
+            return socket;
+        },
+    });
+    const status = () => page.id('connection').textContent;
+    const online = () => /^(Running|Paused)/.test(status());
+    try {
+        assert.equal(status(), 'Connecting');
+        await waitFor(online, 'initial console state');
+        const closed = once(sockets[0], 'close');
+        sockets[0].terminate();
+        await closed;
+        assert.equal(status(), 'Reconnecting');
+        assert.equal(page.actions.get('reset').disabled, true);
+        await waitFor(online, 'fast console reconnect', 0.9);
+        assert.equal(sockets.length, 2);
+        assert.equal(page.actions.get('reset').disabled, false);
+    } finally {
+        page.close();
+    }
+}
+
 async function checkConsolePage(html, script, image) {
     const page = openConsole({
         html, script, host, request,
@@ -252,6 +280,7 @@ async function main() {
     assert.match(page.headers['content-security-policy'], /frame-ancestors 'none'/);
     const script = await request('/console.js');
     assert.equal(script.status, 200);
+    await checkConsoleReconnect(page.body.toString(), script.body.toString());
     assert.equal((await request('/console.css')).status, 200);
     assert.equal((await request('/api/control?action=shutdown', 'POST', null,
         {Origin: 'http://other.example'})).status, 403);

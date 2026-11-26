@@ -99,6 +99,7 @@ python3 scripts/install-os6-bundle.py \
     XAPP=build/out/XAPP.exf "${mmu_module_name}=build/out/XAPP.mmu.exf" \
     -o build/out/centos-xapp.img
 cat build/out/XAPP.job
+make -j4 emulator-cpp
 run/centurion-system build/out/centos-xapp.img
 ```
 

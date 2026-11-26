@@ -13,7 +13,7 @@ run/cpu6-os6-sdcc -Os --lto --gc-sections \
     examples/hello_os6.c --map build/out/hello.map -o build/out/hello.exf
 run/cpu6-os6-install /path/to/CENTOS_13.IMG build/out/hello.exf \
     XHELLO6 build/out/hello.img
-run/centurion-system build/out/hello.img
+run/centurion-system-js build/out/hello.img
 ```
 
 The installer adds the executable to a new disk copy. After booting

@@ -108,17 +108,21 @@ stored elsewhere, set `SEED=/path/to/CENTOS_13.IMG` for the build and export
 `CENTURION_FIRMWARE=/path/to/firmware.json` for the build, emulator and
 tests. The firmware import script accepts `--output` for a custom location.
 
-Use `make sdk` to build the compiler tools and emulator alone. The build also initializes the required submodules after a plain clone. Run `make check` for a quick check after importing the firmware, `make tests` for regressions on both emulators or `make alltests` for the extended suite. [Test guide](doc/sdcc.md#verification)
+Use `make sdk` to build the compiler tools and the JavaScript emulator. The build also initializes the required submodules after a plain clone. Run `make check` for a quick check after importing the firmware, `make tests` for regressions on both emulators or `make alltests` for the extended suite. [Test guide](doc/sdcc.md#verification)
 
 ## Start a CENTOS session
 
+Build the native C++ server and start it.
+
 ```sh
+make -j4 emulator-cpp
 run/centurion-system
 ```
 
-Pass an explicit disk image path to open a different copy. Build reports,
-executable maps and the mapping of installed regression names to their
-sources are grouped by run under `build/out/image/work/`.
+For the JavaScript server, run `make emulator` followed by
+`run/centurion-system-js`. Both launchers accept an explicit disk image path.
+Build reports, executable maps and the mapping of installed regression
+names to their sources are grouped by run under `build/out/image/work/`.
 
 Open the [web console](http://127.0.0.1:42646/) and click **Boot CENTOS** on CRT0. The launcher mounts the generated application image by default. Once `CRT0 READY` appears, try the prime sieve or open BASIC.
 
@@ -174,12 +178,7 @@ See [firmware provenance](LICENSE.md#source-provenance).
 
 ### Native emulator
 
-Build the native server with GCC 13 or newer and the Boost headers. It uses the same firmware pack, disk images, browser page and default ports.
-
-```
-make -j4 emulator-cpp
-run/centurion-system-cpp
-```
+The native server uses GCC 13 or newer and the Boost headers. It uses the same firmware pack, disk images, browser page and default ports as the JavaScript server.
 
 GCC 15 and newer use C++26 and `#embed`. GCC 13 uses a C++23
 initializer for the same ROMs. The dispatcher limits each call chain
@@ -192,7 +191,7 @@ Set `FIRMWARE_JSON=/absolute/path/to/pack.json` to specialize for another pack. 
 
 Use `make emulator-cpp ARCHFLAGS= FIRMWARE_JSON=` for a portable build with only the generic engine. The default build tunes the binary for the local CPU.
 
-After the native build, `run/centurion-system` selects it automatically. Set `CENTURION_EMULATOR=javascript` to run the reference or `CENTURION_EMULATOR=cpp` to require the native build. Both launchers accept an explicit Hawk image path. On the native server, `CENTURION_TELNET_BASE` and `CENTURION_WEB_PORT` set alternate ports for running both servers side by side.
+On the native server, `CENTURION_TELNET_BASE` and `CENTURION_WEB_PORT` set alternate ports for running both servers side by side.
 
 On the Telnet control panel, `m` shows the microinstruction, ALU and sequencer stack. Use `g` to install or remove the diagnostic ROMs and `+` and `-` to change the diagnostic selector. To boot the diagnostic ROM from a halted panel, reset with `x`, check that the ROMs are on with `g`, enable sense switch 1 with `o`, then start with `r`.
 

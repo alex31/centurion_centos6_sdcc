@@ -28,7 +28,7 @@ firmware and CENTOS seed as the full distribution build.
 
 ```sh
 make basic-image SEED=/path/to/CENTOS_13.IMG
-run/centurion-system build/out/basic/centos-basic.img
+run/centurion-system-js build/out/basic/centos-basic.img
 ```
 
 ## Language and console

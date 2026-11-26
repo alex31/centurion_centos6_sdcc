@@ -86,8 +86,7 @@ def smoke(first_port, image, kermit=False, format_data=False):
         with (disks / 'data.img').open('wb') as disk:
             disk.truncate(6_651_904)
         environment = {**os.environ, 'CENTURION_TELNET_BASE': str(first_port),
-                       'CENTURION_WEB_PORT': str(first_port + 5), 'CENTURION_BIND': '127.0.0.1',
-                       'CENTURION_EMULATOR': 'auto'}
+                       'CENTURION_WEB_PORT': str(first_port + 5), 'CENTURION_BIND': '127.0.0.1'}
         with (directory / 'server.log').open('w+') as log, subprocess.Popen(
             [ROOT / 'run/centurion-system', image], cwd=directory, env=environment,
             stdin=subprocess.PIPE, stdout=log, stderr=log,
