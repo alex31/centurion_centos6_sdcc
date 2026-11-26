@@ -163,6 +163,36 @@ async function checkTerminalStatusBeforeConnect() {
     }
 }
 
+function checkMuxCauses() {
+    const mux = new global.window.io_mux.constructor();
+    mux.writebyte(0, 0xe5);
+    mux.writebyte(2, 0xe5);
+    mux.writebyte(4, 0xe5);
+    mux.writebyte(10, 6);
+    mux.writebyte(14, 0);
+    mux.muxports[0].run_tx();
+    mux.writebyte(1, 65);
+    assert.equal(mux.is_interrupt(), true);
+    mux.acknowledge();
+    mux.writebyte(1, 66);
+    assert.equal(mux.readbyte(15), 1);
+    assert.equal(mux.is_interrupt(), false);
+    assert.equal(mux.readbyte(15), 255);
+
+    mux.writebyte(12, 12);
+    mux.muxports[1].receive(67);
+    mux.muxports[2].receive(68);
+    for (const cause of [2, 4, 5, 7]) {
+        assert.equal(mux.is_interrupt(), true);
+        mux.acknowledge();
+        assert.equal(mux.readbyte(15), cause);
+        if (cause === 2) assert.equal(mux.readbyte(3), 67);
+        if (cause === 4) assert.equal(mux.readbyte(5), 68);
+    }
+    assert.equal(mux.is_interrupt(), false);
+    assert.equal(mux.readbyte(15), 255);
+}
+
 function checkCoreConfig() {
     const {brload, brsave, to_csr, from_csr} = global.window;
     const config = {CRT1: 'écran 🖥', '0123': 'disk', '0head': 'spare',
@@ -321,6 +351,7 @@ async function main() {
     if (native)
         await launchNative();
     else {
+        checkMuxCauses();
         checkCoreConfig();
         checkDiskManager();
         await checkTerminalStatusBeforeConnect();

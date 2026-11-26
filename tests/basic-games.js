@@ -75,6 +75,9 @@ async function checkGames(image, names) {
                     Array.from({length: 80}, (_, x) =>
                         String.fromCharCode(session.cell(x, y) & 127)).join(''));
                 assert.ok(rows.some(row => /^ {10}\* *$/.test(row)), rows.join('\n'));
+                assert.match(reply, ready, 'CHIEF must return to BASIC');
+                const next = await enter('PRINT 6*7', ready);
+                assert.match(next, /\n *42 *\r?\n/, 'BASIC lost the first command after CHIEF');
             }
             if (!ready.test(reply)) {
                 const from = session.output.length;

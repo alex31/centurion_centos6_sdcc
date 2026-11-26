@@ -101,6 +101,35 @@ void check_bus(const centurion::Firmware& firmware)
         throw std::runtime_error("A polled IRQ remained pending");
 }
 
+void check_mux_causes()
+{
+    centurion::Mux mux;
+    mux.write(0, 0xe5);
+    mux.write(2, 0xe5);
+    mux.write(4, 0xe5);
+    mux.write(10, 6);
+    mux.write(14, 0);
+    mux.advance_transmit();
+    mux.write(1, 'A');
+    if (mux.interrupt_level() != 6) throw std::runtime_error("Missing transmit IRQ");
+    mux.acknowledge();
+    mux.write(1, 'B');
+    if (mux.read(15) != 1 || mux.interrupt_level() || mux.read(15) != 255)
+        throw std::runtime_error("Coalesced TX completions generated a spurious receive IRQ");
+
+    mux.write(12, 12); // Request TX service on ports 2 and 3.
+    mux.receive(1, 'C');
+    mux.receive(2, 'D');
+    for (unsigned cause : {2, 4, 5, 7}) {
+        if (mux.interrupt_level() != 6) throw std::runtime_error("Lost pending MUX IRQ");
+        mux.acknowledge();
+        if (mux.read(15) != cause) throw std::runtime_error("Wrong pending MUX cause");
+        if (cause == 2 && mux.read(3) != 'C') throw std::runtime_error("Lost RX1 data");
+        if (cause == 4 && mux.read(5) != 'D') throw std::runtime_error("Lost RX2 data");
+    }
+    if (mux.interrupt_level() || mux.read(15) != 255) throw std::runtime_error("MUX did not become idle");
+}
+
 void check_cmd_divider(centurion::Machine& machine)
 {
     bool fault {};
@@ -132,6 +161,7 @@ try {
 
     check_sequencer();
     check_bus(firmware);
+    check_mux_causes();
     centurion::Machine machine(firmware);
     check_cmd_divider(machine);
     std::string output;
