@@ -1,51 +1,52 @@
 #include <stdio.h>
+#include <os6_curses.h>
 #include "game.h"
 
 static C4Board board;
 static char input[8];
 
-static void vt100_pos(int row, int column)
-{
-    printf("\033[%d;%dH", row, column);
-}
-
 static void draw_board(void)
 {
+    static const char border[] = " +---+---+---+---+---+---+---+";
     int row;
-    printf("\033[2J\033[H"); /* Clear the screen and move the cursor home. */
-    vt100_pos(1, 1); printf("CONNECT FOUR");
-    vt100_pos(2, 1); printf("You: X     Computer: O");
-    vt100_pos(4, 1); printf("   1   2   3   4   5   6   7");
-    vt100_pos(5, 1); printf(" +---+---+---+---+---+---+---+");
+    os6_curses_clear();
+    os6_curses_move(1, 1); printf("CONNECT FOUR");
+    os6_curses_move(2, 1); printf("You: X     Computer: O");
+    os6_curses_move(4, 1); printf("   1   2   3   4   5   6   7");
+    os6_curses_move(5, 1); printf("%s", border);
     for (row = 0; row < C4_ROWS; row++) {
-        vt100_pos(6 + row, 1);
+        os6_curses_move(6 + row, 1);
         printf(" |   |   |   |   |   |   |   |");
     }
-    vt100_pos(12, 1); printf(" +---+---+---+---+---+---+---+");
+    os6_curses_move(12, 1); printf("%s", border);
 }
 
 static void draw_token(int row, int column, char token)
 {
-    vt100_pos(6 + row, 4 + 4 * column);
+    os6_curses_move(6 + row, 4 + 4 * column);
     printf("%c", token);
 }
 
 static void message(const char *s)
 {
-    vt100_pos(14, 1);
-    printf("\033[K%s", s);
+    os6_curses_move(14, 1);
+    os6_curses_eol();
+    printf("%s", s);
 }
 
 static int ask(const char *question)
 {
-    vt100_pos(15, 1);
-    printf("\033[K%s", question);
+    os6_curses_move(15, 1);
+    os6_curses_eol();
+    printf("%s", question);
     return os6_getline(input, sizeof(input));
 }
 
 int main(void)
 {
     int row, column, finished, playing = 1;
+    if (os6_curses_select() < 0)
+        return 1;
     while (playing) {
         c4_init(&board);
         draw_board();
@@ -92,14 +93,17 @@ int main(void)
                 finished = 1;
                 continue;
             }
-            vt100_pos(14, 1);
-            printf("\033[KComputer: column %d. Your turn.", column + 1);
+            os6_curses_move(14, 1);
+            os6_curses_eol();
+            printf("Computer: column %d. Your turn.", column + 1);
         }
         if (playing) {
             if (ask("Play again? (Y/N): ") < 0) return 1;
             playing = (input[0] == 'y' || input[0] == 'Y') && !input[1];
         }
     }
-    printf("\033[2J\033[HEnd of Connect Four.\n");
+    os6_curses_clear();
+    os6_curses_end();
+    puts("End of Connect Four.");
     return 0;
 }

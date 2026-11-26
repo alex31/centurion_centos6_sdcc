@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #ifdef __CPU6_OS6__
+#include <os6_curses.h>
 #include <time.h>
 #endif
 
@@ -168,6 +169,31 @@ static int checked_input(void)
         return 0;
     return os6_getline_checked(small, 1) == 0 && !small[0] && small[1] == '!';
 }
+
+static int console_keys(void)
+{
+    puts("LIBC SINGLE KEY");
+    if (os6_read_key() != 'x')
+        return 0;
+    if (os6_curses_init(OS6_CURSES_VT100) != 0)
+        return 0;
+    os6_curses_keypad(1);
+    puts("LIBC CURSOR KEYS");
+    if (os6_curses_getch() != OS6_KEY_UP || os6_curses_getch() != OS6_KEY_DOWN ||
+        os6_curses_getch() != OS6_KEY_RIGHT || os6_curses_getch() != OS6_KEY_LEFT ||
+        os6_curses_getch() != OS6_KEY_PAGE_UP || os6_curses_getch() != OS6_KEY_PAGE_DOWN)
+        return 0;
+    os6_curses_end();
+    if (os6_curses_init(OS6_CURSES_ADDS_REGENT_100) != 0)
+        return 0;
+    puts("LIBC ADDS KEYS");
+    if (os6_curses_getch() != OS6_KEY_UP || os6_curses_getch() != OS6_KEY_DOWN ||
+        os6_curses_getch() != OS6_KEY_RIGHT || os6_curses_getch() != '\b' ||
+        os6_curses_getch() != '\b')
+        return 0;
+    os6_curses_end();
+    return 1;
+}
 #endif
 
 int main(void)
@@ -189,6 +215,10 @@ int main(void)
     }
     if (!checked_input()) {
         puts("FAIL checked input");
+        return EXIT_FAILURE;
+    }
+    if (!console_keys()) {
+        puts("FAIL console keys");
         return EXIT_FAILURE;
     }
     os6_printf_buffered(1);

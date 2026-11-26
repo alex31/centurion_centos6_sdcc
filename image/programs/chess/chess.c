@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <os6.h>
+#include <os6_curses.h>
 #include "play.h"
 
 static char input[76];
@@ -30,10 +31,12 @@ static int command(const char *word)
     }
     return !input[i];
 }
-static void position(unsigned row,unsigned column)
-{printf("\033[%u;%uH",row,column);}
 static void message(unsigned row,const char *text)
-{position(row,1);printf("\033[0m\033[K%s",text);}
+{
+    os6_curses_move(row, 1);
+    os6_curses_eol();
+    printf("%s", text);
+}
 static int ask(unsigned row,const char *text)
 {message(row,text);return os6_getline(input,sizeof(input));}
 static char square_token(unsigned rank, unsigned file)
@@ -47,10 +50,12 @@ static char square_token(unsigned rank, unsigned file)
 
 static void paint_square(unsigned rank, unsigned file, char token)
 {
-    if ((rank + file) & 1)
-        printf(" %c ", token);
-    else
-        printf("\033[7m %c \033[0m", token);
+    int reverse = ((rank + file) & 1) == 0;
+    if (reverse)
+        os6_curses_reverse(1);
+    printf(" %c ", token);
+    if (reverse)
+        os6_curses_reverse(0);
     displayed[rank][file] = token;
 }
 
@@ -58,27 +63,29 @@ static void draw_board(void)
 {
     unsigned rank,file,r;
     static const char *legend[]={"P/p  Pawn","N/n  Knight","B/b  Bishop","R/r  Rook","Q/q  Queen","K/k  King"};
-    printf("\033[0m\033[2J\033[HCHESS - Centurion CPU6");
+    os6_curses_reverse(0);
+    os6_curses_clear();
+    printf("CHESS - Centurion CPU6");
     message(2,"White: uppercase   Black: lowercase");
-    position(3,6);
+    os6_curses_move(3,6);
     for(file=0;file<8;file++)printf("%c   ",flipped?'h'-file:'a'+file);
     for(rank=0;rank<8;rank++){
         r=flipped?7-rank:rank;
-        position(4+2*rank,1);printf("   +---+---+---+---+---+---+---+---+");
-        position(5+2*rank,1);printf(" %u |",8-r);
+        os6_curses_move(4+2*rank,1);printf("   +---+---+---+---+---+---+---+---+");
+        os6_curses_move(5+2*rank,1);printf(" %u |",8-r);
         for(file=0;file<8;file++){
             paint_square(rank,file,square_token(rank,file));
             putchar('|');
         }
         printf(" %u",8-r);
     }
-    position(20,1);printf("   +---+---+---+---+---+---+---+---+");
-    position(21,6);for(file=0;file<8;file++)printf("%c   ",flipped?'h'-file:'a'+file);
-    for(rank=0;rank<6;rank++){position(5+2*rank,44);printf("%s",legend[rank]);}
-    position(18,44);printf("Move format: e2e4");
-    position(19,44);printf("HELP  Commands");
-    position(20,44);printf("NEW   New game   RESIGN");
-    position(21,44);printf("Q     Exit");
+    os6_curses_move(20,1);printf("   +---+---+---+---+---+---+---+---+");
+    os6_curses_move(21,6);for(file=0;file<8;file++)printf("%c   ",flipped?'h'-file:'a'+file);
+    for(rank=0;rank<6;rank++){os6_curses_move(5+2*rank,44);printf("%s",legend[rank]);}
+    os6_curses_move(18,44);printf("Move format: e2e4");
+    os6_curses_move(19,44);printf("HELP  Commands");
+    os6_curses_move(20,44);printf("NEW   New game   RESIGN");
+    os6_curses_move(21,44);printf("Q     Exit");
 }
 
 static void update_board(void)
@@ -88,13 +95,14 @@ static void update_board(void)
         for (file = 0; file < 8; file++) {
             char token = square_token(rank, file);
             if (token != displayed[rank][file]) {
-                position(5 + 2 * rank, 5 + 4 * file);
+                os6_curses_move(5 + 2 * rank, 5 + 4 * file);
                 paint_square(rank, file, token);
             }
         }
     }
-    position(24, 1);
-    printf("\033[K%s %s", last_computer ? "Computer plays" : "Last move:", last_move);
+    os6_curses_move(24, 1);
+    os6_curses_eol();
+    printf("%s %s", last_computer ? "Computer plays" : "Last move:", last_move);
 }
 static void remember(uint8_t from,uint8_t to,unsigned computer)
 {
@@ -117,9 +125,13 @@ int main(void)
 {
     unsigned human=0, two=0, restart=1, result;
     ChessMove move;
+    if (os6_curses_select() < 0)
+        return 1;
     chess_callback(cooperate,0);
     while(restart){
-        printf("\033[0m\033[2J\033[HCHESS - mcu-max 1.0.6 (MIT)");
+        os6_curses_reverse(0);
+        os6_curses_clear();
+        printf("CHESS - mcu-max 1.0.6 (MIT)");
         message(3,"Moves: e2e4, e1g1 for castling; promotion is always a queen.");
         if(ask(5,"Play White, Black, or 2 players? (W/B/2/Q): ")<0)return 1;
         if(command("Q"))break;
@@ -129,7 +141,9 @@ int main(void)
         while(1){
             if(last_move[0])update_board();
             if(game_status()!=CHESS_PLAYING){ending();break;}
-            position(22,1);printf("\033[K%s to move%s.",chess_side()?"Black":"White",game_checked()?" - CHECK":"");
+            os6_curses_move(22,1);
+            os6_curses_eol();
+            printf("%s to move%s.",chess_side()?"Black":"White",game_checked()?" - CHECK":"");
             if(!two && chess_side()!=human){
                 message(23,"Computer thinking...");callback_count=0;c4_clock_read(&began);searching=1;
                 game_choice(&move);searching=0;
@@ -140,7 +154,7 @@ int main(void)
             do {
                 /* Leave room for the complete 75-character CENTOS input. */
                 if(ask(23,"> ")<0)return 1;
-                if(command("Q")){message(24,"End of Chess.");putchar(10);return 0;}
+                if(command("Q")){restart=0;break;}
                 if(command("NEW"))break;
                 if(command("RESIGN")){message(22,chess_side()?"Black resigns. White wins.":"White resigns. Black wins.");break;}
                 if(command("HELP")){
@@ -154,12 +168,15 @@ int main(void)
                     last_move[4]=0;last_computer=0;
                 }
             }while(!result);
+            if(!restart)break;
             if(command("NEW")||command("RESIGN"))break;
         }
+        if(!restart)break;
         do {
             if(ask(23,"New game? (Y/N): ")<0)return 1;
         }while(!command("Y")&&!command("N"));
         restart=command("Y");
     }
+    os6_curses_end();
     message(24,"End of Chess.");putchar(10);return 0;
 }

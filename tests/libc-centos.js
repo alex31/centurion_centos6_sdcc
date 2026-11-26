@@ -34,6 +34,12 @@ async function main() {
         await session.waitFor('LIBC CHECKED INPUT', start);
         for (const input of ['12\x00tail', '9'.repeat(225), '2147483648', '23x', '42', ''])
             await session.send(input + '\r');
+        await session.waitFor('LIBC SINGLE KEY', start);
+        await session.send('x');
+        await session.waitFor('LIBC CURSOR KEYS', start);
+        await session.send('\x1bOA\x1bOB\x1b[C\x1b[D\x1b[5~\x1b[6~');
+        await session.waitFor('LIBC ADDS KEYS', start);
+        await session.send('\x1a\x0a\x06\x15\b');
         await session.waitFor('PASS stdlib', start);
         await session.waitFor('HELLO FROM C ON CENTURION CPU6', start);
         await session.waitFor('FOR SYSRDR', start);

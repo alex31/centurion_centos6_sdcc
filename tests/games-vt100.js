@@ -5,9 +5,11 @@ const {OS6Session} = require('../scripts/os6-session.js');
 const A_REVERSE = 0x1000; // Centurion CRT reverse-video attribute.
 
 const CONNECT_PROMPT = 'Column (1-7), or Q to quit: ';
+const CONNECT_BORDER = ' +---+---+---+---+---+---+---+';
 const CHOMP_PROMPT = 'Your move (ROW COLUMN, or Q to quit): ';
 const CHESS_MENU = '(W/B/2/Q): ';
 const CHESS_PROMPT = '\x1b[K> ';
+const TERMINAL_PROMPT = 'Terminal [V]T100 / [A]DDS / A[U]TO (Enter for VT100): ';
 const CHESS_OPENING = [
     'rnbqkbnr', 'pppppppp', '        ', '        ',
     '        ', '        ', 'PPPPPPPP', 'RNBQKBNR',
@@ -17,6 +19,11 @@ async function checkGames(image) {
     const session = new OS6Session(image);
     const cell = (row, col) => String.fromCharCode(session.cell(col - 1, row - 1) & 127);
     const rowText = row => Array.from({length: 80}, (_, i) => cell(row, i + 1)).join('');
+
+    function checkConnectBorders() {
+        assert.equal(rowText(5).trimEnd(), CONNECT_BORDER, 'Top border');
+        assert.equal(rowText(12).trimEnd(), CONNECT_BORDER, 'Bottom border');
+    }
 
     async function enter(command, prompt) {
         const from = session.output.length;
@@ -77,8 +84,10 @@ async function checkGames(image) {
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: XCHOMP is listed in SDCC and plays to completion on the VT100.');
 
-        await enter('.RUN SDCC.XCONNECT4', CONNECT_PROMPT);
+        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
+        await enter('', CONNECT_PROMPT);
         assert.match(rowText(1), /^CONNECT FOUR/);
+        checkConnectBorders();
         await enter('0', CONNECT_PROMPT);
         assert.match(rowText(14), /^Enter a digit from 1 to 7/);
         await enter('4', CONNECT_PROMPT);
@@ -95,7 +104,8 @@ async function checkGames(image) {
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Connect Four handles input and displays both moves on the VT100 board.');
 
-        await enter('.RUN SDCC.XCHESS', CHESS_MENU);
+        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
+        await enter('V', CHESS_MENU);
         await enter('2', CHESS_PROMPT);
         const chess = CHESS_OPENING.map(rank => [...rank]);
         chessBoard(chess);
@@ -123,7 +133,8 @@ async function checkGames(image) {
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Chess displays legal play, en passant and castling on the VT100 board.');
 
-        await enter('.RUN SDCC.XCHESS', CHESS_MENU);
+        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
+        await enter('V', CHESS_MENU);
         await enter('B', CHESS_PROMPT);
         const opening = /^Computer plays ([a-h][12])([a-h][34])/.exec(rowText(24));
         assert.ok(opening, rowText(24));
@@ -142,6 +153,34 @@ async function checkGames(image) {
         await enter('Q', 'End of Chess.');
         await enter('.STA', 'STATUS DISPLAY');
         console.log('PASS: Chess computer plays a legal opening move with the board flipped.');
+
+        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
+        assert.match(await enter('A', CONNECT_PROMPT), /\f/);
+        assert.match(rowText(1), /^CONNECT FOUR/);
+        await enter('4', CONNECT_PROMPT);
+        assert.equal(cell(11, 16), 'X');
+        assert.match(rowText(14), /^Computer: column [1-7]/);
+        checkConnectBorders();
+        await enter('Q', 'End of Connect Four.');
+        await enter('.STA', 'STATUS DISPLAY');
+        await enter('.RUN SDCC.XCHESS', TERMINAL_PROMPT);
+        assert.match(await enter('A', CHESS_MENU), /\f/);
+        await enter('2', '\x1bK> ');
+        const addsChess = CHESS_OPENING.map(rank => [...rank]);
+        chessBoard(addsChess);
+        await enter('e2e4', '\x1bK> ');
+        play(addsChess, 'e2', 'e4');
+        chessBoard(addsChess);
+        await enter('Q', 'End of Chess.');
+        await enter('.STA', 'STATUS DISPLAY');
+        console.log('PASS: Connect Four and Chess use native ADDS positioning and reverse video.');
+
+        await enter('.RUN SDCC.XCONNECT4', TERMINAL_PROMPT);
+        assert.match(await enter('U', CONNECT_PROMPT), /\x1bY/);
+        assert.match(rowText(1), /^CONNECT FOUR/);
+        await enter('Q', 'End of Connect Four.');
+        await enter('.STA', 'STATUS DISPLAY');
+        console.log('PASS: Auto mode selects the screen profile from a terminal reply.');
     } finally {
         session.stop();
     }
